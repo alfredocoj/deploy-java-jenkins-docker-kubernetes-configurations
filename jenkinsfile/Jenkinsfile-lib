@@ -1,0 +1,75 @@
+pipeline {
+
+  agent {
+        docker {
+            image 'maven:3-alpine'
+            args '-v /root/.m2:/root/.m2'
+        }
+  }
+
+  environment {
+    //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
+    ARTIFACT = readMavenPom().getArtifactId()
+    VERSION = readMavenPom().getVersion()
+    EXECUTE_TEST_AND_SONAR = readMavenPom().getProperties().getProperty('jenkins.test')
+  }
+
+  stages {
+    stage('Build') {
+      steps {
+        sh 'echo $EXECUTE_TEST_AND_SONAR'
+        sh 'mvn -B -DskipTests clean package'
+      }
+    }
+
+    stage('Test') {
+      when {
+        expression {
+          (EXECUTE_TEST_AND_SONAR != null && EXECUTE_TEST_AND_SONAR == 'true') || EXECUTE_TEST_AND_SONAR == null
+        }
+      }
+      steps {
+        sh 'mvn test -Dspring.profiles.active=unit'
+      }
+      post {
+        always {
+          junit 'target/surefire-reports/*.xml'
+        }
+      }
+    }
+
+    stage('Sonarqube') {
+      when {
+        expression {
+          EXECUTE_TEST_AND_SONAR == 'true'
+        }
+      }
+      environment {
+        scannerHome = tool 'SonarQubeScanner'
+      }
+
+      steps {
+        configFileProvider([configFile(fileId: 'SonarQubeFile', variable: 'SONAR_TEMPLATE')]) {
+          sh 'chmod +x $SONAR_TEMPLATE'
+          sh "/bin/bash $SONAR_TEMPLATE ${ARTIFACT}_${env.BRANCH_NAME} ${VERSION} sonar-project.properties"
+        }
+
+        withSonarQubeEnv('SonarQube1') {
+          sh "${scannerHome}/bin/sonar-scanner"
+        }
+
+        timeout(time: 10, unit: 'MINUTES') {
+          waitForQualityGate abortPipeline: true
+        }
+      }
+    }
+
+    stage('Deploy Lib') {
+      steps {
+        configFileProvider([configFile(fileId: '07710e30-2822-4669-9f45-30349edeb108', variable: 'SETTINGS_XML')]) {
+          sh 'mvn deploy -DskipTests -s $SETTINGS_XML'
+        }
+      }
+    }
+  }
+}

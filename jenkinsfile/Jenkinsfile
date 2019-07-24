@@ -1,0 +1,69 @@
+pipeline {
+
+  agent {
+        docker {
+            image 'maven:3-alpine'
+            args '-v /root/.m2:/root/.m2'
+        }
+  }
+
+  environment {
+    //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
+    ARTIFACT = readMavenPom().getArtifactId()
+    VERSION = readMavenPom().getVersion()
+  }
+
+  stages {
+    stage('Build') {
+      steps {
+        sh 'mvn -B -DskipTests clean package'
+      }
+    }
+
+    stage('Test') {
+      steps {
+        sh 'mvn test -Dspring.profiles.active=unit'
+      }
+      post {
+        always {
+          junit 'target/surefire-reports/*.xml'
+        }
+      }
+    }
+
+    stage('Sonarqube') {
+      environment {
+        scannerHome = tool 'SonarQubeScanner'
+      }
+
+      steps {
+        configFileProvider([configFile(fileId: 'SonarQubeFile', variable: 'SONAR_TEMPLATE')]) {
+          sh 'chmod +x $SONAR_TEMPLATE'
+          sh "/bin/bash $SONAR_TEMPLATE ${ARTIFACT}_${env.BRANCH_NAME} ${VERSION} sonar-project.properties"
+        }
+
+        withSonarQubeEnv('SonarQube1') {
+          sh "${scannerHome}/bin/sonar-scanner"
+        }
+
+        timeout(time: 10, unit: 'MINUTES') {
+          waitForQualityGate abortPipeline: true
+        }
+      }
+    }
+
+    stage('Docker Build') {
+      environment {
+        DOCKER_REPO='10.121.2.211:5001'
+      }
+      steps {
+        configFileProvider([configFile(fileId: 'DockerImageGenerator', variable: 'DOCKER_IG')]) {
+          configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
+            sh "chmod +x $DOCKER_IG"
+            sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION-$BRANCH_NAME"
+          }
+        }
+      }
+    }
+  }
+}
