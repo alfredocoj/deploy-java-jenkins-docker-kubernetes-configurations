@@ -1,19 +1,22 @@
 pipeline {
 
+  agent any
+
   environment {
     //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
     ARTIFACT = readMavenPom().getArtifactId()
     VERSION = readMavenPom().getVersion()
+    DOCKER_REPO = '10.121.2.211:5001'
   }
 
   stages {
     stage('Build') {
       agent {
         docker {
-          image 'maven:3-alpine'
-          args '-v /root/.m2:/root/.m2'
+            image 'maven:3-alpine'
+            args '-v /root/.m2:/root/.m2'
         }
-      }
+       }
       steps {
         sh 'mvn -B -DskipTests clean package'
       }
@@ -63,9 +66,6 @@ pipeline {
     }
 
     stage('Docker Build') {
-      environment {
-        DOCKER_REPO = '10.121.2.211:5001'
-      }
       agent {
         docker {
           image 'maven:3-alpine'
@@ -87,7 +87,7 @@ pipeline {
         branch 'master'
       }
       environment {
-        IMAGE_DOCKER = "$DOCKER_REPO/ithappens/${ARTIFACT}:${VERSION}"
+        IMAGE_DOCKER = "${DOCKER_REPO}/ithappens/${ARTIFACT}:${VERSION}-$BRANCH_NAME"
         WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
         deploymentFileName = 'deployment-java-default.yaml'
         GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${ARTIFACT}.groovy"
@@ -106,6 +106,7 @@ pipeline {
 
           env.PROFILE = PROFILE
           echo "PROFILE SELECIONADA: ${env.PROFILE}"
+          env.NAME_DEPLOYMENT="$ARTIFACT-${env.PROFILE}"
         }
 
         withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
@@ -138,7 +139,7 @@ pipeline {
         branch 'homologacao'
       }
       environment {
-        IMAGE_DOCKER = "$DOCKER_REPO/ithappens/${ARTIFACT}:${VERSION}"
+        IMAGE_DOCKER = "${DOCKER_REPO}/ithappens/${ARTIFACT}:${VERSION}-$BRANCH_NAME"
         WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
         deploymentFileName = 'deployment-java-default.yaml'
         GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/hom/${ARTIFACT}.groovy"
@@ -157,6 +158,7 @@ pipeline {
 
           env.PROFILE = PROFILE
           echo "PROFILE SELECIONADA: ${env.PROFILE}"
+          env.NAME_DEPLOYMENT="$ARTIFACT-${env.PROFILE}"
         }
 
         withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
