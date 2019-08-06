@@ -106,7 +106,7 @@ pipeline {
 
           env.PROFILE = PROFILE
           echo "PROFILE SELECIONADA: ${env.PROFILE}"
-          env.NAME_DEPLOYMENT="$ARTIFACT-${env.PROFILE}"
+          env.NAME_DEPLOYMENT="$ARTIFACT"
         }
 
         withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
@@ -158,7 +158,7 @@ pipeline {
 
           env.PROFILE = PROFILE
           echo "PROFILE SELECIONADA: ${env.PROFILE}"
-          env.NAME_DEPLOYMENT="$ARTIFACT-${env.PROFILE}"
+          env.NAME_DEPLOYMENT="$ARTIFACT"
         }
 
         withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
