@@ -1,189 +1,184 @@
 pipeline {
 
-  agent any
+    agent any
 
-  environment {
-    //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
-    ARTIFACT = readMavenPom().getArtifactId()
-    VERSION = readMavenPom().getVersion()
-    DOCKER_REPO = '10.121.2.211:5001'
-  }
-
-  stages {
-    stage('Build') {
-      agent {
-        docker {
-            image 'maven:3-alpine'
-            args '-v /root/.m2:/root/.m2'
-        }
-       }
-      steps {
-        sh 'mvn -B -DskipTests clean package'
-      }
+    environment {
+        //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
+        ARTIFACT = readMavenPom().getArtifactId()
+        VERSION = readMavenPom().getVersion()
+        DOCKER_REPO = '10.121.2.211:5001'
     }
 
-    stage('Test') {
-      agent {
-        docker {
-          image 'maven:3-alpine'
-          args '-v /root/.m2:/root/.m2'
+    stages {
+
+        stage('Inicialization') {
+            steps {
+                script {
+
+                    def PROFILE = input message: 'Selecione um Profile',
+                            parameters: [
+                                    [$class: 'TextParameterDefinition', description: 'Selecione um Profile de Produção', name: 'profile']
+                            ]
+
+                    env.PROFILE = PROFILE
+                    echo "PROFILE SELECIONADA: ${env.PROFILE}"
+                    def PROFILES_NAMES_SPLIT = PROFILE
+                    env.LAST_NAME = PROFILES_NAMES_SPLIT.split(',')[0]
+                    echo "LASTNAME: ${env.LAST_NAME}"
+                    env.NAME_DEPLOYMENT = "$ARTIFACT"
+                    //env.NAME_DEPLOYMENT = "$ARTIFACT-${env.LAST_NAME}"
+                }
+            }
         }
-      }
-      steps {
-        sh 'mvn test -Dspring.profiles.active=unit'
-      }
-      post {
-        always {
-          junit 'target/surefire-reports/*.xml'
+
+        stage('Build') {
+            agent {
+                docker {
+                    image 'maven:3-alpine'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps {
+                sh 'mvn -B -DskipTests clean package'
+            }
         }
-      }
+
+        stage('Test') {
+            agent {
+                docker {
+                    image 'maven:3-alpine'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps {
+                sh 'mvn test -Dspring.profiles.active=unit'
+            }
+            post {
+                always {
+                    junit 'target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('Sonarqube') {
+            environment {
+                scannerHome = tool 'SonarQubeScanner'
+            }
+            agent {
+                docker {
+                    image 'maven:3-alpine'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps {
+                configFileProvider([configFile(fileId: 'SonarQubeFile', variable: 'SONAR_TEMPLATE')]) {
+                    sh 'chmod +x $SONAR_TEMPLATE'
+                    sh "/bin/bash $SONAR_TEMPLATE ${ARTIFACT}_${env.BRANCH_NAME} ${VERSION} sonar-project.properties"
+                }
+
+                withSonarQubeEnv('SonarQube1') {
+                    sh "${scannerHome}/bin/sonar-scanner"
+                }
+
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            agent {
+                docker {
+                    image 'maven:3-alpine'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps {
+                configFileProvider([configFile(fileId: 'DockerImageGenerator', variable: 'DOCKER_IG')]) {
+                    configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
+                        sh "chmod +x $DOCKER_IG"
+                        sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION-$BRANCH_NAME"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Kubernetes Producao') {
+            when {
+                branch 'master'
+            }
+            environment {
+                IMAGE_DOCKER = "${DOCKER_REPO}/ithappens/${ARTIFACT}:${VERSION}-$BRANCH_NAME"
+                WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
+                deploymentFileName = 'deployment-java-default.yaml'
+                GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${ARTIFACT}.groovy"
+                DIR = "$WORKSPACE_DEPLOYMENT/$deploymentFileName $WORKSPACE"
+                NAMESPACE = 'java-pro'
+            }
+
+            steps {
+
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
+
+                    sh 'cp $DIR'
+
+                    load "${GROOVYFILE}"
+
+                    sh 'printenv'
+
+                    sh 'rm -rf deployment.yaml'
+
+                    sh 'cat $deploymentFileName | envsubst > deployment.yaml'
+
+                    sh 'cat deployment.yaml'
+
+                    sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
+
+                    sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
+
+                    sleep 30
+
+                    sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
+                }
+            }
+        }
+
+        stage('Deploy Kubernetes Homologacao') {
+            when {
+                branch 'homologacao'
+            }
+            environment {
+                IMAGE_DOCKER = "${DOCKER_REPO}/ithappens/${ARTIFACT}:${VERSION}-$BRANCH_NAME"
+                WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
+                deploymentFileName = 'deployment-java-default.yaml'
+                GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/hom/${ARTIFACT}.groovy"
+                DIR = "$WORKSPACE_DEPLOYMENT/$deploymentFileName $WORKSPACE"
+                NAMESPACE = 'java-hom'
+            }
+            steps {
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
+
+                    sh 'cp $DIR'
+
+                    load "${GROOVYFILE}"
+
+                    sh 'printenv'
+
+                    sh 'rm -rf deployment.yaml'
+
+                    sh 'cat $deploymentFileName | envsubst > deployment.yaml'
+
+                    sh 'cat deployment.yaml'
+
+                    sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
+
+                    sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
+
+                    sleep 30
+
+                    sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
+                }
+            }
+        }
     }
-
-    stage('Sonarqube') {
-      environment {
-        scannerHome = tool 'SonarQubeScanner'
-      }
-      agent {
-        docker {
-          image 'maven:3-alpine'
-          args '-v /root/.m2:/root/.m2'
-        }
-      }
-      steps {
-        configFileProvider([configFile(fileId: 'SonarQubeFile', variable: 'SONAR_TEMPLATE')]) {
-          sh 'chmod +x $SONAR_TEMPLATE'
-          sh "/bin/bash $SONAR_TEMPLATE ${ARTIFACT}_${env.BRANCH_NAME} ${VERSION} sonar-project.properties"
-        }
-
-        withSonarQubeEnv('SonarQube1') {
-          sh "${scannerHome}/bin/sonar-scanner"
-        }
-
-        timeout(time: 10, unit: 'MINUTES') {
-          waitForQualityGate abortPipeline: true
-        }
-      }
-    }
-
-    stage('Docker Build') {
-      agent {
-        docker {
-          image 'maven:3-alpine'
-          args '-v /root/.m2:/root/.m2'
-        }
-      }
-      steps {
-        configFileProvider([configFile(fileId: 'DockerImageGenerator', variable: 'DOCKER_IG')]) {
-          configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
-            sh "chmod +x $DOCKER_IG"
-            sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION-$BRANCH_NAME"
-          }
-        }
-      }
-    }
-
-    stage('Deploy Kubernetes Producao') {
-      when {
-        branch 'master'
-      }
-      environment {
-        IMAGE_DOCKER = "${DOCKER_REPO}/ithappens/${ARTIFACT}:${VERSION}-$BRANCH_NAME"
-        WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
-        deploymentFileName = 'deployment-java-default.yaml'
-        GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${ARTIFACT}.groovy"
-        DIR = "$WORKSPACE_DEPLOYMENT/$deploymentFileName $WORKSPACE"
-        NAMESPACE = 'java-pro'
-      }
-
-      steps {
-
-        script {
-
-          def PROFILE = input message: 'Selecione um Profile',
-              parameters: [
-                  [$class: 'TextParameterDefinition', description: 'Selecione um Profile de Produção', name: 'profile']
-              ]
-
-          env.PROFILE = PROFILE
-          echo "PROFILE SELECIONADA: ${env.PROFILE}"
-          env.NAME_DEPLOYMENT="$ARTIFACT-${env.PROFILE}"
-        }
-
-        withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
-
-          sh 'cp $DIR'
-
-          load "${GROOVYFILE}"
-
-          sh 'printenv'
-
-          sh 'rm -rf deployment.yaml'
-
-          sh 'cat $deploymentFileName | envsubst > deployment.yaml'
-
-          sh 'cat deployment.yaml'
-
-          sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
-
-          sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
-
-          sleep 30
-
-          sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
-        }
-      }
-    }
-
-    stage('Deploy Kubernetes Homologacao') {
-      when {
-        branch 'homologacao'
-      }
-      environment {
-        IMAGE_DOCKER = "${DOCKER_REPO}/ithappens/${ARTIFACT}:${VERSION}-$BRANCH_NAME"
-        WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
-        deploymentFileName = 'deployment-java-default.yaml'
-        GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/hom/${ARTIFACT}.groovy"
-        DIR = "$WORKSPACE_DEPLOYMENT/$deploymentFileName $WORKSPACE"
-        NAMESPACE = 'java-hom'
-      }
-
-      steps {
-
-        script {
-
-          def PROFILE = input message: 'Selecione um Profile',
-              parameters: [
-                  [$class: 'TextParameterDefinition', description: 'Selecione um Profile de Homologação', name: 'profile']
-              ]
-
-          env.PROFILE = PROFILE
-          echo "PROFILE SELECIONADA: ${env.PROFILE}"
-          env.NAME_DEPLOYMENT="$ARTIFACT-${env.PROFILE}"
-        }
-
-        withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
-
-          sh 'cp $DIR'
-
-          load "${GROOVYFILE}"
-
-          sh 'printenv'
-
-          sh 'rm -rf deployment.yaml'
-
-          sh 'cat $deploymentFileName | envsubst > deployment.yaml'
-
-          sh 'cat deployment.yaml'
-
-          sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
-
-          sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
-
-          sleep 30
-
-          sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
-        }
-      }
-    }
-  }
 }
