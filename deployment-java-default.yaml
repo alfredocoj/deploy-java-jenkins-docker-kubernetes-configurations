@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${NAME_DEPLOYMENT}
+spec:
+  selector:
+    matchLabels:
+      app: ${NAME_DEPLOYMENT}
+  replicas: ${REPLICAS}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: ${NAME_DEPLOYMENT}
+    spec:
+      containers:
+        - name: ${NAME_DEPLOYMENT}-container
+          image: ${IMAGE_DOCKER}
+          args: [ "/deployments/run-java.sh", "--thin.root=/deployments/m2"]
+          resources:
+            requests:
+              cpu: ${REQUEST_CORES}
+              memory: ${REQUEST_MEMORY}
+            limits:
+              cpu: "${MAX_CORES}"
+              memory: "${MAX_MEMORY}"
+          env:
+            - name: JAVA_OPTIONS
+              value: ${JAVA_OPTIONS}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: ${URL_TEST}
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            successThreshold: 1
+      terminationGracePeriodSeconds: 60
+      #nodeSelector:
+      #  kubernetes.io/hostname: ${NODE_KUBERNETES}
+      imagePullSecrets:
+        - name: registrypullsecret
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${NAME_DEPLOYMENT}-service
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+  selector:
+    app: ${NAME_DEPLOYMENT}
+
