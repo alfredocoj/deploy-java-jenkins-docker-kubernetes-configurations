@@ -9,7 +9,8 @@ Jenkinsfile has the following steps:
 - Docker Build
 - Deploy Kubernetes Producao and Homologation.
 
-* Plugins used:
+## Plugins used:
+
 - Multibranch Pipeline
 - Managed Files
 - Docker
