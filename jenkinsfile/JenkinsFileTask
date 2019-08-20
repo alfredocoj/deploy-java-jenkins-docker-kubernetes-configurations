@@ -106,5 +106,83 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy Kubernetes Producao') {
+            when {
+                branch 'master'
+            }
+            environment {
+                IMAGE_DOCKER = "${DOCKER_REPO}/ithappens/${ARTIFACT}:${VERSION}-$BRANCH_NAME"
+                WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
+                DEPLOYMENT_FILE = 'deployment-java-task.yaml'
+                GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${ARTIFACT}.groovy"
+                DIR = "$WORKSPACE_DEPLOYMENT/$DEPLOYMENT_FILE $WORKSPACE"
+                NAMESPACE = 'java-pro'
+            }
+
+            steps {
+
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
+
+                    sh 'cp $DIR'
+
+                    load "${GROOVYFILE}"
+
+                    sh 'printenv'
+
+                    sh 'rm -rf deployment.yaml'
+
+                    sh 'cat $DEPLOYMENT_FILE | envsubst > deployment.yaml'
+
+                    sh 'cat deployment.yaml'
+
+                    sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
+
+                    sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
+
+                    sleep 30
+
+                    sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
+                }
+            }
+        }
+
+        stage('Deploy Kubernetes Homologacao') {
+            when {
+                branch 'homologacao'
+            }
+            environment {
+                IMAGE_DOCKER = "${DOCKER_REPO}/ithappens/${ARTIFACT}:${VERSION}-$BRANCH_NAME"
+                WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
+                DEPLOYMENT_FILE = 'deployment-java-task.yaml'
+                GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/hom/${ARTIFACT}.groovy"
+                DIR = "$WORKSPACE_DEPLOYMENT/$DEPLOYMENT_FILE $WORKSPACE"
+                NAMESPACE = 'java-hom'
+            }
+            steps {
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
+
+                    sh 'cp $DIR'
+
+                    load "${GROOVYFILE}"
+
+                    sh 'printenv'
+
+                    sh 'rm -rf deployment.yaml'
+
+                    sh 'cat $DEPLOYMENT_FILE | envsubst > deployment.yaml'
+
+                    sh 'cat deployment.yaml'
+
+                    sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
+
+                    sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
+
+                    sleep 30
+
+                    sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
+                }
+            }
+        }
     }
 }
