@@ -1,0 +1,110 @@
+pipeline {
+
+    agent any
+
+    environment {
+        //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
+        ARTIFACT = readMavenPom().getArtifactId()
+        VERSION = readMavenPom().getVersion()
+        DOCKER_REPO = '10.121.2.211:5001'
+    }
+
+    stages {
+
+        stage('Inicialization') {
+            steps {
+                script {
+
+                    def PROFILE = input message: 'Selecione um Profile',
+                            parameters: [
+                                    [$class: 'TextParameterDefinition', description: 'Selecione um Profile de Produção', name: 'profile']
+                            ]
+
+                    env.PROFILE = PROFILE
+                    echo "PROFILE SELECIONADA: ${env.PROFILE}"
+                  	def PROFILES_NAMES_SPLIT = PROFILE
+                    env.LAST_NAME = PROFILES_NAMES_SPLIT.split(',')[0]
+                    echo "LASTNAME: ${env.LAST_NAME}"
+                    //env.NAME_DEPLOYMENT = "$ARTIFACT"
+                    env.NAME_DEPLOYMENT = "$ARTIFACT-${env.LAST_NAME}"
+                }
+            }
+        }
+
+        stage('Build') {
+            agent {
+                docker {
+                    image 'maven:3-alpine'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps {
+              	configFileProvider([configFile(fileId: 'ItHappensTaskDeployFileId', variable: 'DEPLOY_ID')]) {
+                    sh 'chmod +x $DEPLOY_ID'
+                    sh "/bin/bash $DEPLOY_ID"
+                }
+                sh 'mvn -B -DskipTests clean package'
+            }
+        }
+
+        stage('Test') {
+            agent {
+                docker {
+                    image 'maven:3-alpine'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps {
+                sh 'mvn test -Dspring.profiles.active=unit'
+            }
+            post {
+                always {
+                    junit 'target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('Sonarqube') {
+            environment {
+                scannerHome = tool 'SonarQubeScanner'
+            }
+            agent {
+                docker {
+                    image 'maven:3-alpine'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps {
+                configFileProvider([configFile(fileId: 'SonarQubeFile', variable: 'SONAR_TEMPLATE')]) {
+                    sh 'chmod +x $SONAR_TEMPLATE'
+                    sh "/bin/bash $SONAR_TEMPLATE ${ARTIFACT}_${env.BRANCH_NAME} ${VERSION} sonar-project.properties"
+                }
+
+                withSonarQubeEnv('SonarQube1') {
+                    sh "${scannerHome}/bin/sonar-scanner"
+                }
+
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            agent {
+                docker {
+                    image 'maven:3-alpine'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps {
+                configFileProvider([configFile(fileId: 'DockerImageGenerator', variable: 'DOCKER_IG')]) {
+                    configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
+                        sh "chmod +x $DOCKER_IG"
+                        sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION-$BRANCH_NAME"
+                    }
+                }
+            }
+        }
+    }
+}
