@@ -1,0 +1,23 @@
+#!/bin/bash
+
+PACKAGE=$(find . -type d -wholename "*src/main/java/*service" | cut -d / -f 5- | sed 's/\//./g')
+FOLDER=$(find . -type d -wholename "*src/main/java/*service" | cut -d / -f 5-)
+
+cat > "src/main/java/$FOLDER/ItHappensTaskProcessIdReporterService.java" <<-EOF
+package $PACKAGE;
+
+@org.springframework.stereotype.Service
+public class ItHappensTaskProcessIdReporterService {
+
+  @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+  public void writeProcessToFile() throws java.io.IOException {
+    String pathname = "/tmp/deploy/identifier.txt";
+    java.io.File file = new java.io.File(pathname);
+    java.nio.file.Files.createDirectories(java.nio.file.Paths.get(file.getParent()));
+    java.io.FileWriter writer = new java.io.FileWriter(file);
+    writer.write("DEPLOYED");
+    writer.close();
+  }
+
+}
+EOF

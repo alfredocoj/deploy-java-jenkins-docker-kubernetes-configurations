@@ -72,4 +72,13 @@ pipeline {
       }
     }
   }
+  post {
+    // only triggered when blue or green sign
+    success {
+      slackSend (color: "#69BA34", message: "Build completa - ${env.ARTIFACT} v${VERSION} [${env.BRANCH_NAME}] (<${env.BUILD_URL}|Abrir no Jenkins>)")
+	}
+    failure {
+      slackSend (color: "#A64941", message: "Build com Erro - ${env.ARTIFACT} v${VERSION} [${env.BRANCH_NAME}] (<${env.BUILD_URL}|Abrir no Jenkins>)")
+	}
+  }
 }
