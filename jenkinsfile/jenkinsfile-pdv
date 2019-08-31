@@ -60,12 +60,12 @@ pipeline {
             steps {
 
                 script {
-                    if ("$ARTIFACT" == "pdv-3-banco-cupom") {
+                    if ("$ARTIFACT" == "pdv-3-banco-cupom" || "$ARTIFACT" == "pdv4-tesouraria") {
                         echo "name artefact: $ARTIFACT"
 
-                        def PROFILE_TIPE = input message: 'Escolha sua versão do serviço pdv-3-banco-cupom', ok: 'Next',
+                        def PROFILE_TIPE = input message: 'Escolha sua versão do serviço $ARTIFACT', ok: 'Next',
                                 parameters: [
-                                        choice(name: 'PROFILE_TIPE', choices: ['ws','task'].join('\n'), description:  'Por favor, selecione a versão do serviço pdv-3-banco-cupom - (1): prod,ws e (2): prod,task')]
+                                        choice(name: 'PROFILE_TIPE', choices: ['ws','task'].join('\n'), description:  'Por favor, selecione a versão do serviço $ARTIFACT - (1): prod,ws e (2): prod,task')]
 
                         env.PROFILE_TIPE = PROFILE_TIPE
                         echo "PROFILE_TIPE: ${env.PROFILE_TIPE}"
@@ -120,12 +120,12 @@ pipeline {
             steps {
 
                 script {
-                    if ("$ARTIFACT" == "pdv-3-banco-cupom") {
+                    if ("$ARTIFACT" == "pdv-3-banco-cupom" || "$ARTIFACT" == "pdv4-tesouraria") {
                         echo "name artefact: $ARTIFACT"
 
-                        def PROFILE_TIPE = input message: 'Escolha sua versão do serviço pdv-3-banco-cupom', ok: 'Next',
+                        def PROFILE_TIPE = input message: 'Escolha sua versão do serviço $ARTIFACT', ok: 'Next',
                                 parameters: [
-                                        choice(name: 'PROFILE_TIPE', choices: ['ws','task'].join('\n'), description:  'Por favor, selecione a versão do serviço pdv-3-banco-cupom - (1): prod,ws e (2): prod,task')]
+                                        choice(name: 'PROFILE_TIPE', choices: ['ws','task'].join('\n'), description:  'Por favor, selecione a versão do serviço $ARTIFACT - (1): prod,ws e (2): prod,task')]
 
                         env.PROFILE_TIPE = PROFILE_TIPE
                         echo "PROFILE_TIPE: ${env.PROFILE_TIPE}"
