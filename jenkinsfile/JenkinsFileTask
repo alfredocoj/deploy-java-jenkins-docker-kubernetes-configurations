@@ -55,7 +55,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'mvn test -Dspring.profiles.active=unit'
+                sh 'mvn test jacoco:report -Dspring.profiles.active=unit'
             }
             post {
                 always {
@@ -85,7 +85,7 @@ pipeline {
                 }
 
                 timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                  	waitForQualityGate abortPipeline: true
                 }
             }
         }
