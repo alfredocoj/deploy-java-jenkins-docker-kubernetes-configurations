@@ -7,7 +7,7 @@ pipeline {
         VERSION = readMavenPom().getVersion()
         WAR_NAME = readMavenPom().getBuild().getFinalName()
     }
-
+    stages {
         stage('Build manven') {
             /* This builds the actual image; synonymous to
              * docker build on the command line */
