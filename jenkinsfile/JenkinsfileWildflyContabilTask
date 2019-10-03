@@ -1,0 +1,69 @@
+pipeline {
+    agent any
+
+    environment {
+        //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
+        ARTIFACT = readMavenPom().getArtifactId()
+        VERSION = readMavenPom().getVersion()
+        WAR_NAME = readMavenPom().getBuild().getFinalName()
+    }
+    stages {
+        stage('Build manven') {
+            /* This builds the actual image; synonymous to
+             * docker build on the command line */
+            steps {
+                sh 'mvn clean package -DskipTests -s src/resources/settings.xml -X'
+
+            }
+        }
+
+        stage('Deploy Kubernetes Producao') {
+            when {
+                branch 'master'
+            }
+            environment {
+                IMAGE_DOCKER = "192.168.6.184:5000/ithappens/wildfly-nfe:latest"
+                WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
+                deploymentFileName = 'deployment-wildfly-contabil.yaml'
+                GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/contabilidade-wildfly-${ARTIFACT}-task.groovy"
+                DIR = "$WORKSPACE_DEPLOYMENT/$deploymentFileName $WORKSPACE"
+                NAMESPACE = 'java-pro'
+            }
+
+            steps {
+
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
+
+                    sh 'cp $DIR'
+
+                    load "${GROOVYFILE}"
+
+                    sh 'printenv'
+
+                    sh 'rm -rf deployment.yaml'
+
+                    sh 'POD=$(kubectl -n java-pro get pod -l app=wildfly-contabilidade-task -o jsonpath="{.items[0].metadata.name}")'
+
+                    sh 'mv target/$WAR_NAME target/$ARTIFACT.war'
+
+                    sh 'kubectl cp target/$ARTIFACT.war java-pro/$(kubectl -n java-pro get pod -l app=wildfly-contabilidade-task -o jsonpath="{.items[0].metadata.name}"):/opt/jboss/wildfly/standalone/deployments/$ARTIFACT.war'
+
+                    sleep 30
+
+                    sh 'echo "POD_NAME: "$POD'
+
+                    sh 'cat $deploymentFileName | envsubst > deployment.yaml'
+
+                    sh 'cat deployment.yaml'
+
+                    sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml'
+
+                    sleep 60
+
+                    sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
+                }
+            }
+        }
+
+    }
+}
