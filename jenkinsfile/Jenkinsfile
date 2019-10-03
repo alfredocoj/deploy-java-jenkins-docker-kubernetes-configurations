@@ -7,11 +7,12 @@ pipeline {
         ARTIFACT = readMavenPom().getArtifactId()
         VERSION = readMavenPom().getVersion()
         DOCKER_REPO = '10.121.2.211:5001'
+        NAME_DEPLOYMENT = readMavenPom().getArtifactId()
     }
 
     stages {
 
-        stage('Inicialization') {
+        /*stage('Inicialization') {
             steps {
                 script {
 
@@ -22,13 +23,13 @@ pipeline {
 
                     env.PROFILE = PROFILE
                     echo "PROFILE SELECIONADA: ${env.PROFILE}"
-                  	def PROFILES_NAMES_SPLIT = PROFILE
+                    def PROFILES_NAMES_SPLIT = PROFILE
                     env.LAST_NAME = PROFILES_NAMES_SPLIT.split(',')[0]
                     echo "LASTNAME: ${env.LAST_NAME}"
                     env.NAME_DEPLOYMENT = "$ARTIFACT-${env.LAST_NAME}"
                 }
             }
-        }
+        }*/
 
         stage('Build') {
             agent {

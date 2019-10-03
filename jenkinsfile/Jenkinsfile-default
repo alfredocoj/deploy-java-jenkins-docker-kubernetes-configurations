@@ -7,11 +7,12 @@ pipeline {
         ARTIFACT = readMavenPom().getArtifactId()
         VERSION = readMavenPom().getVersion()
         DOCKER_REPO = '10.121.2.211:5001'
+        NAME_DEPLOYMENT = readMavenPom().getArtifactId()
     }
 
     stages {
 
-        stage('Inicialization') {
+        /*stage('Inicialization') {
             steps {
                 script {
 
@@ -28,7 +29,7 @@ pipeline {
                     env.NAME_DEPLOYMENT = "$ARTIFACT-${env.LAST_NAME}"
                 }
             }
-        }
+        }*/
 
         stage('Build') {
             agent {
