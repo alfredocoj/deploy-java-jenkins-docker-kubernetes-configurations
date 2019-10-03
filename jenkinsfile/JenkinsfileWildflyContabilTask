@@ -44,7 +44,7 @@ pipeline {
 
                     sh 'POD=$(kubectl -n java-pro get pod -l app=wildfly-contabilidade-task -o jsonpath="{.items[0].metadata.name}")'
 
-                    sh 'mv target/$WAR_NAME target/$ARTIFACT.war'
+                    sh 'mv target/$WAR_NAME.war target/$ARTIFACT.war'
 
                     sh 'kubectl cp target/$ARTIFACT.war java-pro/$(kubectl -n java-pro get pod -l app=wildfly-contabilidade-task -o jsonpath="{.items[0].metadata.name}"):/opt/jboss/wildfly/standalone/deployments/$ARTIFACT.war'
 
