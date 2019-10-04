@@ -7,7 +7,7 @@ pipeline {
         ARTIFACT = readMavenPom().getArtifactId()
         VERSION = readMavenPom().getVersion()
         DOCKER_REPO = '10.121.2.211:5001'
-        NAME_DEPLOYMENT = readMavenPom().getArtifactId()
+        NAME_DEPLOYMENT = "$ARTIFACT-prod"
     }
 
     stages {
