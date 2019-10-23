@@ -6,8 +6,9 @@ pipeline {
         //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
         ARTIFACT = readMavenPom().getArtifactId()
         VERSION = readMavenPom().getVersion()
-        DOCKER_REPO = '10.121.2.211:5001'
-        NAME_DEPLOYMENT = "$ARTIFACT-prod"
+        DOCKER_REPO = '10.54.0.214:5001'
+      	NAME_DEPLOYMENT = "$ARTIFACT-prod"
+		//NAME_DEPLOYMENT = readMavenPom().getArtifactId()
     }
 
     stages {
