@@ -1,0 +1,69 @@
+pipeline {
+
+    agent any
+
+    environment {
+        //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
+        DOCKER_REPO = 'rdocker.mateus:5001/ithappens'
+    }
+
+    stages {
+
+        stage('Docker Build') {
+            steps {
+                sh 'docker build -t $NAME_DEPLOYMENT .'
+            }
+        }
+
+
+        stage('Push Build') {
+            environment {
+                IMAGE_DOCKER = "${DOCKER_REPO}/${NAME_DEPLOYMENT}:${BUILD_NUMBER}-$BRANCH_NAME"
+            }
+            steps {
+                sh 'docker tag $(docker images -q $NAME_DEPLOYMENT) $IMAGE_DOCKER'
+                sh 'docker push $IMAGE_ID $IMAGE_DOCKER'
+            }
+        }
+
+        stage('Deploy Kubernetes Producao') {
+            when {
+                branch 'master'
+            }
+            environment {
+                IMAGE_DOCKER = "${DOCKER_REPO}/${NAME_DEPLOYMENT}:${BUILD_NUMBER}-$BRANCH_NAME"
+                WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
+                deploymentFileName = 'deployment-cronjob-python-estatistica.yaml'
+                GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${NAME_DEPLOYMENT}.groovy"
+                DIR = "$WORKSPACE_DEPLOYMENT/$deploymentFileName $WORKSPACE"
+                NAMESPACE = 'statistic'
+            }
+
+            steps {
+
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
+
+                    sh 'cp $DIR'
+
+                    load "${GROOVYFILE}"
+
+                    sh 'printenv'
+
+                    sh 'rm -rf deployment.yaml'
+
+                    sh 'cat $deploymentFileName | envsubst > deployment.yaml'
+
+                    sh 'cat deployment.yaml'
+
+                    sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
+
+                    sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
+
+                    sleep 30
+
+                    sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
+                }
+            }
+        }
+    }
+}
