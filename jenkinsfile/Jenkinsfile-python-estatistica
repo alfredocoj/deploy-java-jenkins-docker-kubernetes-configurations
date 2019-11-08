@@ -61,13 +61,13 @@ pipeline {
 
                     load "${GROOVYFILE}"
 
-                    sh 'printenv'
+                    //sh 'printenv'
 
                     sh 'rm -rf deployment.yaml'
 
                     sh 'cat $deploymentFileName | envsubst > deployment.yaml'
 
-                    sh 'cat deployment.yaml'
+                    //sh 'cat deployment.yaml'
 
                     sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
 

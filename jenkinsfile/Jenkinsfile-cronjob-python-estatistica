@@ -4,14 +4,28 @@ pipeline {
 
     environment {
         //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
-        DOCKER_REPO = 'rdocker.mateus:5001/ithappens'
+        DOCKER_REPO = '10.54.0.214:5001/ithappens'
     }
 
     stages {
 
+        stage('Clone repository') {
+            /* Let's make sure we have the repository cloned to our workspace */
+
+            //checkout scm
+            steps {
+                git branch: "${env.BRANCH_NAME}",
+                        //credentialsId: 'my_cred_id',
+                        url: "${env.REPOSITORI_GIT}",
+                        credentialsId: '105d78b2-3f22-467e-82ac-e52151f8a48f'
+
+                sh "ls -lat"
+            }
+        }
+
         stage('Docker Build') {
             steps {
-                sh 'docker build -t $NAME_DEPLOYMENT .'
+                sh 'docker build -f $DOCKER_FILE -t $NAME_DEPLOYMENT $PATH_BUILD_DOCKER'
             }
         }
 
@@ -47,21 +61,16 @@ pipeline {
 
                     load "${GROOVYFILE}"
 
-                    sh 'printenv'
+                    //sh 'printenv'
 
                     sh 'rm -rf deployment.yaml'
 
                     sh 'cat $deploymentFileName | envsubst > deployment.yaml'
 
-                    sh 'cat deployment.yaml'
+                    //sh 'cat deployment.yaml'
 
                     sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
 
-                    sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
-
-                    sleep 30
-
-                    sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
                 }
             }
         }
