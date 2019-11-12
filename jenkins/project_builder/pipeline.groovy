@@ -106,4 +106,36 @@ node {
    stage('Arquivando projeto') {
        zip archive: true, dir: "${MODULO}-${TIPO_DO_PROJETO}-${NOME_DO_PROJETO}", glob: '', zipFile: "${MODULO}-${TIPO_DO_PROJETO}-${NOME_DO_PROJETO}.zip"
    }
+
+   stage('Criando Arquivo de Configuracoes de Deploy') {
+      checkout changelog: true, poll: true, scm: [
+             $class: 'GitSCM',
+             branches: [[name: "origin/master"]],
+             doGenerateSubmoduleConfigurations: false,
+             submoduleCfg: [],
+             userRemoteConfigs: [[credentialsId: 'Chave-SSH-Ivo', url: "git@gitlab.mateus:infa/configs-templates-deployment.git"]]
+      ]
+
+      // Branch: Master
+      sh 'cat configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/template-master.groovy | envsubst > configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/${NOME_DO_PROJETO}.groovy'
+
+      // Branch: Homologacao
+      sh 'cat configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/template-homologacao.groovy | envsubst > configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/${NOME_DO_PROJETO}.groovy'
+
+      sh 'cd configs-templates-deployment'
+
+      sh 'git config core.sshCommand "ssh -i ${SSH_FILE} -F /dev/null"'
+
+      sh 'git config user.email \'jenkins@armateus.com.br\''
+
+      sh 'git config user.name \'Jenkins\''
+
+      sh 'git add .'
+
+      sh 'git commit -m "new project: ${MODULO}-${TIPO_DO_PROJETO}-${NOME_DO_PROJETO}"'
+
+      sh 'git push -u origin master'
+
+      sh 'rm -rf configs-templates-deployment'
+   }
 }
