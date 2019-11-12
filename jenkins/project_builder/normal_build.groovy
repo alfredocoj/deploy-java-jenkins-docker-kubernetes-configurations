@@ -61,13 +61,13 @@ node {
             def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
             def workspaceDeployment = '/var/jenkins_home/workspace/templates-deployment'
             def deploymentFileName = 'deployment-java-default.yaml'
-            def groovyFile = "\${workspaceDeployment}/configs/\${pom.artifactId}.groovy"
+            def groovyFile = "\${workspaceDeployment}/conf/java/${TIPO_DO_PROJETO}/${BRANCH}/${MODULO}/\${pom.artifactId}.groovy"
             def dir = "\${workspaceDeployment}/\${deploymentFileName} \${WORKSPACE}"
             def namespace = 'java-pro'
             def nameDeployment = "\${pom.artifactId}-prod"
             if("${BRANCH}" == "staging") {
-                groovyFile = "\${workspaceDeployment}/configs/hom/\${pom.artifactId}.groovy"
                 namespace = 'java-hom'
+                nameDeployment = "\${pom.artifactId}-hom"
             }
             withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
                 sh "cp \${dir}"
