@@ -9,7 +9,7 @@ node {
                  branches: [[name: "origin/\${env.gitlabSourceBranch}"]],
                  doGenerateSubmoduleConfigurations: false,
                  submoduleCfg: [],
-                 userRemoteConfigs: [[credentialsId: 'Chave-SSH-Ivo', url: "git@gitlab.mateus:${MODULO}/${MODULO}-${TIPO_DO_PROJETO}-${NOME_DO_PROJETO}.git"]]
+                 userRemoteConfigs: [[credentialsId: 'JenkinsUserInGitLab', url: "git@gitlab.mateus:${MODULO}/${MODULO}-${TIPO_DO_PROJETO}-${NOME_DO_PROJETO}.git"]]
         ]
     }
 	gitlabCommitStatus(connection:gitLabConnection('gitlab.mateus')) {

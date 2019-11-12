@@ -9,7 +9,7 @@ node {
                  branches: [[name: "origin/${BRANCH}"]],
                  doGenerateSubmoduleConfigurations: false,
                  submoduleCfg: [],
-                 userRemoteConfigs: [[credentialsId: 'Chave-SSH-Ivo', url: "git@gitlab.mateus:${MODULO}/${MODULO}-${TIPO_DO_PROJETO}-${NOME_DO_PROJETO}.git"]]
+                 userRemoteConfigs: [[credentialsId: 'JenkinsUserInGitLab', url: "git@gitlab.mateus:${MODULO}/${MODULO}-${TIPO_DO_PROJETO}-${NOME_DO_PROJETO}.git"]]
         ]
     }
     gitlabCommitStatus(connection:gitLabConnection('gitlab.mateus')) {
@@ -61,7 +61,8 @@ node {
             def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
             def workspaceDeployment = '/var/jenkins_home/workspace/templates-deployment'
             def deploymentFileName = 'deployment-java-default.yaml'
-            def groovyFile = "\${workspaceDeployment}/conf/java/${TIPO_DO_PROJETO}/${BRANCH}/${MODULO}/\${pom.artifactId}.groovy"
+            def traducaoBranch = "${BRANCH}" == "staging" ? "homologacao" : "master"
+            def groovyFile = "\${workspaceDeployment}/conf/java/${TIPO_DO_PROJETO}/\${traducaoBranch}/${MODULO}/\${pom.artifactId}.groovy"
             def dir = "\${workspaceDeployment}/\${deploymentFileName} \${WORKSPACE}"
             def namespace = 'java-pro'
             def nameDeployment = "\${pom.artifactId}-prod"
