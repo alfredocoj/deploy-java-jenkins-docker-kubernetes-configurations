@@ -60,7 +60,7 @@ node {
             def dockerRegistry = '10.54.0.214:5001'
             def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
             def workspaceDeployment = '/var/jenkins_home/workspace/templates-deployment'
-            def deploymentFileName = 'deployment-java-default.yaml'
+            def deploymentFileName = 'deployment-java.yaml'
             def traducaoBranch = "${BRANCH}" == "staging" ? "homologacao" : "master"
             def groovyFile = "\${workspaceDeployment}/conf/java/${TIPO_DO_PROJETO}/\${traducaoBranch}/${MODULO}/\${pom.artifactId}.groovy"
             def dir = "\${workspaceDeployment}/\${deploymentFileName} \${WORKSPACE}"
