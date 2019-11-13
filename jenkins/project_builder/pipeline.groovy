@@ -54,7 +54,8 @@ node {
                    
                    withCredentials([sshUserPrivateKey(credentialsId: 'JenkinsUserInGitLab', keyFileVariable: 'SSH_FILE', passphraseVariable: '', usernameVariable: '')]) {
                        // Faz o push do projeto criado no GitLab
-                       sh label: '', script: '''cd "${projectFullName}"
+                       sh label: '', script: """
+                        cd "${projectFullName}"
                         git init
                         git config core.sshCommand "ssh -i ${SSH_FILE} -F /dev/null"
                         git config user.email 'jenkins@armateus.com.br'
@@ -63,32 +64,32 @@ node {
                         git commit -m 'Primeiro Commit'
                         git remote add origin "git@gitlab.mateus:${MODULO}/${projectFullName}.git"
                         git push -u origin master
-                        cd ..'''
-                    }
+                        cd .."""
 
-                    stage('Criando Arquivo de Configuracoes de Deploy') {
-                        sh 'mkdir configs-templates-deployment'
+                        stage('Criando Arquivo de Configuracoes de Deploy') {
+                            sh 'mkdir configs-templates-deployment'
 
-                        dir('configs-templates-deployment') {
-                            checkout changelog: true, poll: true, scm: [
-                                    $class: 'GitSCM',
-                                    branches: [[name: "origin/master"]],
-                                    doGenerateSubmoduleConfigurations: false,
-                                    submoduleCfg: [],
-                                    userRemoteConfigs: [[credentialsId: 'JenkinsUserInGitLab', url: "git@gitlab.mateus:infa/configs-templates-deployment.git"]]
-                            ]
+                            dir('configs-templates-deployment') {
+                                checkout changelog: true, poll: true, scm: [
+                                        $class: 'GitSCM',
+                                        branches: [[name: "origin/master"]],
+                                        doGenerateSubmoduleConfigurations: false,
+                                        submoduleCfg: [],
+                                        userRemoteConfigs: [[credentialsId: 'JenkinsUserInGitLab', url: "git@gitlab.mateus:infra/configs-templates-deployment.git"]]
+                                ]
 
-                            sh label: '', script: """
-                            cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/template-master.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/${projectFullName}.groovy"
-                            cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/template-homologacao.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/${projectFullName}.groovy"
-                            cd configs-templates-deployment
-                            git config core.sshCommand "ssh -i ${SSH_FILE} -F /dev/null"
-                            git config user.email "jenkins@armateus.com.br"
-                            git config user.name "Jenkins"
-                            git add .
-                            git commit -m "new project: ${projectFullName}"
-                            git push -u origin master
-                            """
+                                sh label: '', script: """
+                                cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/template-master.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/${projectFullName}.groovy"
+                                cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/template-homologacao.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/${projectFullName}.groovy"
+                                cd configs-templates-deployment
+                                git config core.sshCommand "ssh -i ${SSH_FILE} -F /dev/null"
+                                git config user.email "jenkins@armateus.com.br"
+                                git config user.name "Jenkins"
+                                git add .
+                                git diff --quiet && git diff --staged --quiet || git commit -m "new project: ${projectFullName}"
+                                git diff --quiet && git diff --staged --quiet || git push -u origin master
+                                """
+                            }
                         }
                     }
                     

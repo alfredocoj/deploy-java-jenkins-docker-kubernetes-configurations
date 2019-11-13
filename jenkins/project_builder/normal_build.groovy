@@ -56,21 +56,21 @@ node {
             }
         }
         stage('Deploy Kubernetes') {
-            try {
-                def pom = readMavenPom file: ''
-                def dockerRegistry = '10.54.0.214:5001'
-                def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
-                def deploymentFileName = 'deployment-java-default.yaml'
-                def groovyFile = "conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/\${pom.artifactId}.groovy"
-                def dir = "\${deploymentFileName} \${WORKSPACE}"
-                def namespace = 'java-pro'
-                def nameDeployment = "\${pom.artifactId}-prod"
-                if("${BRANCH}" == "staging") {
-                    groovyFile = "conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/${pom.artifactId}.groovy"
-                    namespace = 'java-hom'
-                    nameDeployment = "\${pom.artifactId}-hom"
-                }
+            def pom = readMavenPom file: ''
+            def dockerRegistry = '10.54.0.214:5001'
+            def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
+            def deploymentFileName = 'deployment-java-default.yaml'
+            def groovyFile = "conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/\${pom.artifactId}.groovy"
+            def directory = "\${deploymentFileName} \${WORKSPACE}"
+            def namespace = 'java-pro'
+            def nameDeployment = "\${pom.artifactId}-prod"
+            if("${BRANCH}" == "staging") {
+                groovyFile = "conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/\${pom.artifactId}.groovy"
+                namespace = 'java-hom'
+                nameDeployment = "\${pom.artifactId}-hom"
+            }
 
+            try {
                 sh 'mkdir -p kubkonfig'
                 dir('kubkonfig') {
                     checkout changelog: true, poll: true, scm: [
