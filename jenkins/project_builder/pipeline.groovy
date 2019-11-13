@@ -57,8 +57,8 @@ node {
                        sh label: '', script: '''cd "${projectFullName}"
                         git init
                         git config core.sshCommand "ssh -i ${SSH_FILE} -F /dev/null"
-                        git config user.email 'ivo.lopes@armateus.com.br'
-                        git config user.name 'Ivo Lopes'
+                        git config user.email 'jenkins@armateus.com.br'
+                        git config user.name 'Jenkins'
                         git add .gitignore pom.xml README.md src/
                         git commit -m 'Primeiro Commit'
                         git remote add origin "git@gitlab.mateus:${MODULO}/${projectFullName}.git"
@@ -67,25 +67,29 @@ node {
                     }
 
                     stage('Criando Arquivo de Configuracoes de Deploy') {
-                        checkout changelog: true, poll: true, scm: [
-                                $class: 'GitSCM',
-                                branches: [[name: "origin/master"]],
-                                doGenerateSubmoduleConfigurations: false,
-                                submoduleCfg: [],
-                                userRemoteConfigs: [[credentialsId: 'JenkinsUserInGitLab', url: "git@gitlab.mateus:infa/configs-templates-deployment.git"]]
-                        ]
+                        sh 'mkdir configs-templates-deployment'
 
-                        sh label: '', script: """
-                        cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/template-master.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/${projectFullName}.groovy"
-                        cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/template-homologacao.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/${projectFullName}.groovy"
-                        cd configs-templates-deployment
-                        git config core.sshCommand "ssh -i ${SSH_FILE} -F /dev/null"
-                        git config user.email "jenkins@armateus.com.br"
-                        git config user.name "Jenkins"
-                        git add .
-                        git commit -m "new project: ${projectFullName}"
-                        git push -u origin master
-                        """
+                        dir('configs-templates-deployment') {
+                            checkout changelog: true, poll: true, scm: [
+                                    $class: 'GitSCM',
+                                    branches: [[name: "origin/master"]],
+                                    doGenerateSubmoduleConfigurations: false,
+                                    submoduleCfg: [],
+                                    userRemoteConfigs: [[credentialsId: 'JenkinsUserInGitLab', url: "git@gitlab.mateus:infa/configs-templates-deployment.git"]]
+                            ]
+
+                            sh label: '', script: """
+                            cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/template-master.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/${projectFullName}.groovy"
+                            cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/template-homologacao.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/${projectFullName}.groovy"
+                            cd configs-templates-deployment
+                            git config core.sshCommand "ssh -i ${SSH_FILE} -F /dev/null"
+                            git config user.email "jenkins@armateus.com.br"
+                            git config user.name "Jenkins"
+                            git add .
+                            git commit -m "new project: ${projectFullName}"
+                            git push -u origin master
+                            """
+                        }
                     }
                     
                     stage('[Jenkins] Criando jobs') {
