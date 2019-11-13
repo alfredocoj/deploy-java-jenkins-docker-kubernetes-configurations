@@ -67,7 +67,7 @@ node {
             def namespace = 'java-pro'
             def nameDeployment = "\${pom.artifactId}-prod"
             if("${BRANCH}" == "staging") {
-                namespace = 'java-hom'
+                namespace = 'java-staging'
                 nameDeployment = "\${pom.artifactId}-hom"
             }
             withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
