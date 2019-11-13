@@ -56,33 +56,52 @@ node {
             }
         }
         stage('Deploy Kubernetes') {
-            def pom = readMavenPom file: ''
-            def dockerRegistry = '10.54.0.214:5001'
-            def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
-            def workspaceDeployment = '/var/jenkins_home/workspace/templates-deployment'
-            def deploymentFileName = 'deployment-java-default.yaml'
-            def traducaoBranch = "${BRANCH}" == "staging" ? "homologacao" : "master"
-            def groovyFile = "\${workspaceDeployment}/conf/java/${TIPO_DO_PROJETO}/\${traducaoBranch}/${MODULO}/\${pom.artifactId}.groovy"
-            def dir = "\${workspaceDeployment}/\${deploymentFileName} \${WORKSPACE}"
-            def namespace = 'java-pro'
-            def nameDeployment = "\${pom.artifactId}-prod"
-            if("${BRANCH}" == "staging") {
-                namespace = 'java-hom'
-                nameDeployment = "\${pom.artifactId}-hom"
+            try {
+                def pom = readMavenPom file: ''
+                def dockerRegistry = '10.54.0.214:5001'
+                def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
+                def deploymentFileName = 'deployment-java-default.yaml'
+                def groovyFile = "conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/\${pom.artifactId}.groovy"
+                def dir = "\${deploymentFileName} \${WORKSPACE}"
+                def namespace = 'java-pro'
+                def nameDeployment = "\${pom.artifactId}-prod"
+                if("${BRANCH}" == "staging") {
+                    groovyFile = "conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/${pom.artifactId}.groovy"
+                    namespace = 'java-hom'
+                    nameDeployment = "\${pom.artifactId}-hom"
+                }
+
+                sh 'mkdir -p kubkonfig'
+                dir('kubkonfig') {
+                    checkout changelog: true, poll: true, scm: [
+                            \$class: 'GitSCM',
+                            branches: [[name: "origin/master"]],
+                            doGenerateSubmoduleConfigurations: false,
+                            submoduleCfg: [],
+                            userRemoteConfigs: [[credentialsId: 'JenkinsUserInGitLab', url: "git@gitlab.mateus:infra/configs-templates-deployment.git"]]
+                    ]
+
+                    withEnv(["NAME_DEPLOYMENT=\${nameDeployment}",
+                                "IMAGE_DOCKER=\${imageDocker}"]) {
+                        withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
+                            sh "cp \${directory}"
+                            load "\${groovyFile}"
+                            sh 'printenv'
+                            sh 'rm -rf deployment.yaml'
+                            sh "cat \${deploymentFileName} | envsubst > deployment.yaml"
+                            sh 'cat deployment.yaml'
+                            sh "kubectl --namespace=\${namespace} apply -f deployment.yaml --record=true"
+                            sh "kubectl set image deployment.v1.apps/\${nameDeployment} \${nameDeployment}-container=\${imageDocker} --namespace=\${namespace} --record=true"
+                            sleep 30
+                            sh "kubectl rollout status deployment.v1.apps/\${nameDeployment} --namespace=\${namespace}"
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                slackSend color: '#A64941', message: "Erro ao deployer projeto \${nameDeployment} [\${pom.version}]: \${ex.message}"
+                error(ex.message)
             }
-            withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
-                sh "cp \${dir}"
-                load "\${groovyFile}"
-                sh 'printenv'
-                sh 'rm -rf deployment.yaml'
-                sh "cat \${deploymentFileName} | envsubst > deployment.yaml"
-                sh 'cat deployment.yaml'
-                sh 'kubectl --namespace=\${namespace} apply -f deployment.yaml --record=true'
-                sh "kubectl set image deployment.v1.apps/\${nameDeployment} \${nameDeployment}-container=\${imageDocker} --namespace=\${namespace} --record=true"
-                sleep 30
-                sh 'kubectl rollout status deployment.v1.apps/\${nameDeployment} --namespace=\${namespace}'
-            }
-        }
+        } 
     }
 }
             """)
