@@ -54,38 +54,43 @@ node {
                    
                    withCredentials([sshUserPrivateKey(credentialsId: 'JenkinsUserInGitLab', keyFileVariable: 'SSH_FILE', passphraseVariable: '', usernameVariable: '')]) {
                        // Faz o push do projeto criado no GitLab
-                       sh label: '', script: '''cd "${projectFullName}"
+                       sh label: '', script: """
+                        cd "${projectFullName}"
                         git init
                         git config core.sshCommand "ssh -i ${SSH_FILE} -F /dev/null"
-                        git config user.email 'ivo.lopes@armateus.com.br'
-                        git config user.name 'Ivo Lopes'
+                        git config user.email 'jenkins@armateus.com.br'
+                        git config user.name 'Jenkins'
                         git add .gitignore pom.xml README.md src/
                         git commit -m 'Primeiro Commit'
                         git remote add origin "git@gitlab.mateus:${MODULO}/${projectFullName}.git"
                         git push -u origin master
-                        cd ..'''
-                    }
+                        cd .."""
 
-                    stage('Criando Arquivo de Configuracoes de Deploy') {
-                        checkout changelog: true, poll: true, scm: [
-                                $class: 'GitSCM',
-                                branches: [[name: "origin/master"]],
-                                doGenerateSubmoduleConfigurations: false,
-                                submoduleCfg: [],
-                                userRemoteConfigs: [[credentialsId: 'JenkinsUserInGitLab', url: "git@gitlab.mateus:infa/configs-templates-deployment.git"]]
-                        ]
+                        stage('Criando Arquivo de Configuracoes de Deploy') {
+                            sh 'mkdir configs-templates-deployment'
 
-                        sh label: '', script: """
-                        cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/template-master.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/${projectFullName}.groovy"
-                        cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/template-homologacao.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/${projectFullName}.groovy"
-                        cd configs-templates-deployment
-                        git config core.sshCommand "ssh -i ${SSH_FILE} -F /dev/null"
-                        git config user.email "jenkins@armateus.com.br"
-                        git config user.name "Jenkins"
-                        git add .
-                        git commit -m "new project: ${projectFullName}"
-                        git push -u origin master
-                        """
+                            dir('configs-templates-deployment') {
+                                checkout changelog: true, poll: true, scm: [
+                                        $class: 'GitSCM',
+                                        branches: [[name: "origin/master"]],
+                                        doGenerateSubmoduleConfigurations: false,
+                                        submoduleCfg: [],
+                                        userRemoteConfigs: [[credentialsId: 'JenkinsUserInGitLab', url: "git@gitlab.mateus:infra/configs-templates-deployment.git"]]
+                                ]
+
+                                sh label: '', script: """
+                                cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/template-master.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/${projectFullName}.groovy"
+                                cat "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/template-homologacao.groovy" | envsubst > "configs-templates-deployment/conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/${projectFullName}.groovy"
+                                cd configs-templates-deployment
+                                git config core.sshCommand "ssh -i ${SSH_FILE} -F /dev/null"
+                                git config user.email "jenkins@armateus.com.br"
+                                git config user.name "Jenkins"
+                                git add .
+                                git diff --quiet && git diff --staged --quiet || git commit -m "new project: ${projectFullName}"
+                                git diff --quiet && git diff --staged --quiet || git push -u origin master
+                                """
+                            }
+                        }
                     }
                     
                     stage('[Jenkins] Criando jobs') {
@@ -110,7 +115,7 @@ node {
                        httpRequest acceptType: 'APPLICATION_JSON', consoleLogResponseBody: true, customHeaders: [[maskValue: false, name: 'Authorization', value: "Bearer ${GITLAB_TOKEN}"]], httpMode: 'POST', requestBody: "link_url=http://192.168.6.95:32595/view/contabil/job/${projectFullName}-master/&image_url=http://192.168.6.95:32595/buildStatus/icon?job=${projectFullName}-master&position=0", ignoreSslErrors: true, responseHandle: 'NONE', url: "https://gitlab.mateus/api/v4/projects/${idProjeto}/badges", validResponseCodes: '200:299'
                        httpRequest acceptType: 'APPLICATION_JSON', consoleLogResponseBody: true, customHeaders: [[maskValue: false, name: 'Authorization', value: "Bearer ${GITLAB_TOKEN}"]], httpMode: 'POST', requestBody: "link_url=https://img.shields.io&image_url=https://img.shields.io/badge/maven-0.1.0-blue&position=0", ignoreSslErrors: true, responseHandle: 'NONE', url: "https://gitlab.mateus/api/v4/projects/${idProjeto}/badges", validResponseCodes: '200:299'
                        httpRequest acceptType: 'APPLICATION_JSON', consoleLogResponseBody: true, customHeaders: [[maskValue: false, name: 'Authorization', value: "Bearer ${GITLAB_TOKEN}"]], httpMode: 'POST', requestBody: "link_url=http://192.168.6.182:9000/dashboard/index/${projectFullName}_master&image_url=http://192.168.6.182:9000/api/badges/gate?key=${projectFullName}_master&position=0", ignoreSslErrors: true, responseHandle: 'NONE', url: "https://gitlab.mateus/api/v4/projects/${idProjeto}/badges", validResponseCodes: '200:299'
-                       httpRequest acceptType: 'APPLICATION_JSON', consoleLogResponseBody: true, customHeaders: [[maskValue: false, name: 'Authorization', value: "Bearer ${GITLAB_TOKEN}"]], httpMode: 'POST', requestBody: "link_url=http://192.168.6.182:9000/dashboard/index/${projectFullName}_master&image_url=http://192.168.6.182:9000/api/badges/measure?key=${projectFullName}_master&metric=coverage&position=0", ignoreSslErrors: true, responseHandle: 'NONE', url: "https://gitlab.mateus/api/v4/projects/${idProjeto}/badges", validResponseCodes: '200:299'
+                       httpRequest acceptType: 'APPLICATION_JSON', consoleLogResponseBody: true, customHeaders: [[maskValue: false, name: 'Authorization', value: "Bearer ${GITLAB_TOKEN}"]], httpMode: 'POST', requestBody: "link_url=http://192.168.6.182:9000/dashboard/index/${projectFullName}_master&image_url=http://192.168.6.182:9000/api/badges/measure?key=${projectFullName}_master%26metric=coverage&position=0", ignoreSslErrors: true, responseHandle: 'NONE', url: "https://gitlab.mateus/api/v4/projects/${idProjeto}/badges", validResponseCodes: '200:299'
 
                        // Cria um hook na branch master
                        httpRequest acceptType: 'APPLICATION_JSON', consoleLogResponseBody: true, customHeaders: [[maskValue: false, name: 'Authorization', value: "Bearer ${GITLAB_TOKEN}"]], httpMode: 'POST', ignoreSslErrors: true, responseHandle: 'NONE', url: "https://gitlab.mateus/api/v4/projects/${idProjeto}/hooks?push_events=true&push_events_branch_filter=master&note_events=true&url=http%3A%2F%2Fgitlab%3A11f9af836ab26abffd89bb0812ab5a860c%40192.168.6.95%3A32595%2Fproject%2F${projectFullName}-master", validResponseCodes: '200:299'
