@@ -31,7 +31,7 @@ node {
               def pom = readMavenPom file: ''
               configFileProvider([configFile(fileId: 'SonarQubeFile', variable: 'SONAR_TEMPLATE')]) {
                   sh "chmod +x \${SONAR_TEMPLATE}"
-                  sh "/bin/bash \${SONAR_TEMPLATE} \${pom.artifactId}_${BRANCH} \${pom.version} sonar-project.properties"
+                  sh "/bin/bash \${SONAR_TEMPLATE} \${MODULO}-\${TIPO_DO_PROJETO}-\${pom.artifactId}_${BRANCH} \${pom.version} sonar-project.properties"
               }
               def scannerHome = tool 'SonarQubeScanner';
               withSonarQubeEnv() {
@@ -52,23 +52,23 @@ node {
               configFileProvider([configFile(fileId: 'DockerImageGenerator', variable: 'DOCKER_IG')]) {
                   configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
                       sh "chmod +x \${DOCKER_IG}"
-                      sh "/bin/bash \${DOCKER_IG} \${dockerRegistry} ithappens/\${pom.artifactId} \${pom.version}-${BRANCH}"
+                      sh "/bin/bash \${DOCKER_IG} \${dockerRegistry} ithappens/\${MODULO}-\${TIPO_DO_PROJETO}-\${pom.artifactId} \${pom.version}-${BRANCH}"
                   }
               }
           }
           stage('Deploy Kubernetes') {
               def pom = readMavenPom file: ''
               def dockerRegistry = '10.54.0.214:5001'
-              def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
+              def imageDocker = "\${dockerRegistry}/ithappens/\${MODULO}-\${TIPO_DO_PROJETO}-\${pom.artifactId}:\${pom.version}-${BRANCH}"
               def deploymentFileName = 'deployment-java-default.yaml'
-              def groovyFile = "conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/\${pom.artifactId}.groovy"
+              def groovyFile = "conf/java/\${TIPO_DO_PROJETO}/master/\${MODULO}/\${MODULO}-\${TIPO_DO_PROJETO}-\${pom.artifactId}.groovy"
               def directory = "\${deploymentFileName} \${WORKSPACE}"
               def namespace = 'java-pro'
-              def nameDeployment = "\${pom.artifactId}-prod"
+              def nameDeployment = "\${MODULO}-\${TIPO_DO_PROJETO}-\${pom.artifactId}-prod"
               if("${BRANCH}" == "staging") {
-                  groovyFile = "conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/\${pom.artifactId}.groovy"
+                  groovyFile = "conf/java/\${TIPO_DO_PROJETO}/homologacao/\${MODULO}/\${MODULO}-\${TIPO_DO_PROJETO}-\${pom.artifactId}.groovy"
                   namespace = 'java-hom'
-                  nameDeployment = "\${pom.artifactId}-hom"
+                  nameDeployment = "\${MODULO}-\${TIPO_DO_PROJETO}-\${pom.artifactId}-hom"
               }
   
               try {
