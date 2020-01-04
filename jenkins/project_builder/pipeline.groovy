@@ -24,9 +24,9 @@ node {
        script {
            def tipo = "${TIPO_DO_PROJETO}"
            if (tipo == "rest")
-               mvnCommand = "archetype:generate -DarchetypeGroupId=br.com.ithappens -DarchetypeArtifactId=archetype -DarchetypeVersion=1.3 -DgroupId=br.com.ithappens.${MODULO}.${TIPO_DO_PROJETO} -DartifactId=${projectFullName} -Dversion=0.1.0"
+               mvnCommand = "archetype:generate -DarchetypeGroupId=br.com.ithappens -DarchetypeArtifactId=archetype -DarchetypeVersion=1.3 -DgroupId=br.com.ithappens.${MODULO}.${TIPO_DO_PROJETO} -DartifactId=${projectFullName} -Dmodulo=${MODULO}  -Dversion=0.1.0"
            else if (tipo == "task")
-               mvnCommand = "archetype:generate -DarchetypeGroupId=br.com.ithappens -DarchetypeArtifactId=archetype-task -DarchetypeVersion=1.2 -DgroupId=br.com.ithappens.${MODULO}.${TIPO_DO_PROJETO} -DartifactId=${projectFullName} -Dversion=0.1.0"
+               mvnCommand = "archetype:generate -DarchetypeGroupId=br.com.ithappens -DarchetypeArtifactId=archetype-task -DarchetypeVersion=2.0 -DgroupId=br.com.ithappens.${MODULO}.${TIPO_DO_PROJETO} -DartifactId=${projectFullName} -Dmodulo=${MODULO}  -Dversion=0.1.0"
            else if (tipo == "maestro")
                mvnCommand = "archetype:generate -DarchetypeGroupId=br.com.ithappens -DarchetypeArtifactId=maestro-archetype -DarchetypeVersion=1.3 -DgroupId=br.com.ithappens.${MODULO}.${TIPO_DO_PROJETO} -DartifactId=${projectFullName} -Dversion=0.1.0"
        }
