@@ -95,11 +95,20 @@ node {
                     
                     stage('[Jenkins] Criando jobs') {
                         configFileProvider([configFile(fileId: '29a4632a-5508-411f-8e7c-a5d09d728ed4', targetLocation: 'normal_build.groovy'),
+                                            configFile(fileId: 'c1e9d315-3852-47e6-8890-2046ec5e9793', targetLocation: 'task_build.groovy'),
                         					configFile(fileId: 'ca280e60-2520-4cdd-8b59-d482deb7ea80', targetLocation: 'pr_build.groovy')]) {
-                            jobDsl targets: 'normal_build.groovy',
-                                additionalParameters: [MODULO: "${MODULO}", TIPO_DO_PROJETO: "${TIPO_DO_PROJETO}", NOME_DO_PROJETO: "${NOME_DO_PROJETO}", BRANCH: "master"]
-                            jobDsl targets: 'normal_build.groovy',
-                                additionalParameters: [MODULO: "${MODULO}", TIPO_DO_PROJETO: "${TIPO_DO_PROJETO}", NOME_DO_PROJETO: "${NOME_DO_PROJETO}", BRANCH: "staging"]          
+                            def tipo = "${TIPO_DO_PROJETO}"
+                            if (tipo == "task") {
+                                jobDsl targets: 'task_build.groovy',
+                                    additionalParameters: [MODULO: "${MODULO}", TIPO_DO_PROJETO: "${TIPO_DO_PROJETO}", NOME_DO_PROJETO: "${NOME_DO_PROJETO}", BRANCH: "master"]
+                                jobDsl targets: 'task_build.groovy',
+                                    additionalParameters: [MODULO: "${MODULO}", TIPO_DO_PROJETO: "${TIPO_DO_PROJETO}", NOME_DO_PROJETO: "${NOME_DO_PROJETO}", BRANCH: "staging"]
+                            } else {
+                                jobDsl targets: 'normal_build.groovy',
+                                    additionalParameters: [MODULO: "${MODULO}", TIPO_DO_PROJETO: "${TIPO_DO_PROJETO}", NOME_DO_PROJETO: "${NOME_DO_PROJETO}", BRANCH: "master"]
+                                jobDsl targets: 'normal_build.groovy',
+                                    additionalParameters: [MODULO: "${MODULO}", TIPO_DO_PROJETO: "${TIPO_DO_PROJETO}", NOME_DO_PROJETO: "${NOME_DO_PROJETO}", BRANCH: "staging"]             
+                            }
                             jobDsl targets: 'pr_build.groovy',
                                 additionalParameters: [MODULO: "${MODULO}", TIPO_DO_PROJETO: "${TIPO_DO_PROJETO}", NOME_DO_PROJETO: "${NOME_DO_PROJETO}"]
                         }
