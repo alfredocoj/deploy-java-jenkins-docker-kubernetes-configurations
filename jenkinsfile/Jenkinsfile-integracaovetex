@@ -1,67 +1,67 @@
 pipeline {
-    agent any
+   agent any
 
-    environment {
-        DOCKER_REPO = '10.121.2.211:5001/ithappens'
-        IMAGE_NAME = 'ecommerce-integracaovetex'
-        APP_NAME = 'integracaovetex'
-        VERSION = 'latest'
-        WORKSPACE_DEPLOYMENT = '/var/lib/jenkins/workspace/templates-deployment'
-        TEMPLATES_DIR_ANSIBLE = "${WORKSPACE_DEPLOYMENT}/ansible"
-    }
-    stages {
-        stage('Clone repository') {
-            /* Let's make sure we have the repository cloned to our workspace */
+   environment {
+      DOCKER_REPO = '10.54.0.214:5001/ithappens'
+      IMAGE_NAME = 'ecommerce-integracaovetex'
+      APP_NAME = 'integracaovetex'
+      VERSION = 'latest'
+      WORKSPACE_DEPLOYMENT = "${JENKINS_HOME}/workspace/templates-deployment"
+      TEMPLATES_DIR_ANSIBLE = "${WORKSPACE_DEPLOYMENT}/ansible"
+   }
+   stages {
+      stage('Clone repository') {
+         /* Let's make sure we have the repository cloned to our workspace */
 
-            //checkout scm
-            steps {
-                git branch: 'master',
-                        //credentialsId: 'my_cred_id',
-                        url: 'git@git.mateus:ecommerce/integracaovtex.git'
+         //checkout scm
+         steps {
+            git branch: '${BRANCH}',
+                  //credentialsId: 'my_cred_id',
+                  url: 'git@git.mateus:ecommerce/integracaovtex.git'
 
-                sh "ls -lat"
-            }
-        }
+            sh "ls -lat"
+         }
+      }
 
-        stage('Build manven') {
-            /* This builds the actual image; synonymous to
-             * docker build on the command line */
-            steps {
-                sh 'mvn clean package -DskipTests'
+      stage('Build manven') {
+         /* This builds the actual image; synonymous to
+          * docker build on the command line */
+         steps {
+            sh 'mvn clean package -DskipTests'
 
-                //sh 'printenv'
+            //sh 'printenv'
 
-                sh 'cat ${TEMPLATES_DIR_ANSIBLE}/DockerfileIntegracaoVetex > Dockerfile'
+            sh 'cat ${TEMPLATES_DIR_ANSIBLE}/DockerfileIntegracaoVetex > Dockerfile'
 
-                sh 'docker build -t ${IMAGE_NAME} .'
+            sh 'docker build -t ${IMAGE_NAME} .'
 
-                sh 'docker tag $(docker images -q ${IMAGE_NAME}:latest) $DOCKER_REPO/$IMAGE_NAME:${VERSION}'
+            sh 'docker tag $(docker images -q ${IMAGE_NAME}:latest) $DOCKER_REPO/$IMAGE_NAME:${VERSION}'
 
-            }
-        }
+         }
+      }
 
-        stage('Push image') {
-            steps {
-                /* Finally, we'll push the image with two tags:
-             * First, the incremental build number from Jenkins
-             * Second, the 'latest' tag.
-             * Pushing multiple tags is cheap, as all the layers are reused. */
-                sh 'docker push ${DOCKER_REPO}/${IMAGE_NAME}:${VERSION}'
-            }
-        }
+      stage('Push image') {
+         steps {
+            /* Finally, we'll push the image with two tags:
+         * First, the incremental build number from Jenkins
+         * Second, the 'latest' tag.
+         * Pushing multiple tags is cheap, as all the layers are reused. */
+            sh 'docker push ${DOCKER_REPO}/${IMAGE_NAME}:${VERSION}'
+         }
+      }
 
-        stage('Deploy production') {
-            environment {
-                ANSIBLE_PLAYBOOK="${TEMPLATES_DIR_ANSIBLE}/${APP_NAME}.yml"
-                GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${APP_NAME}.groovy"
-            }
-            steps {
-                load "${GROOVYFILE}"
-                //sh 'printenv'
-                sh 'cat $ANSIBLE_PLAYBOOK | envsubst > ansible.yml'
-                sh 'ansible-playbook -i $TEMPLATES_DIR_ANSIBLE/hosts ansible.yml'
-            }
-        }
+      stage('Deploy production') {
+         environment {
+            ANSIBLE_PLAYBOOK = "${TEMPLATES_DIR_ANSIBLE}/${APP_NAME}.yml"
+            GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${APP_NAME}.groovy"
+         }
+         steps {
+            load "${GROOVYFILE}"
+            //sh 'printenv'
+            sh 'cat $ANSIBLE_PLAYBOOK | envsubst > ansible.yml'
+            sh 'ansible-playbook -i $TEMPLATES_DIR_ANSIBLE/hosts ansible.yml'
+         }
+      }
 
-    }
+   }
 }
