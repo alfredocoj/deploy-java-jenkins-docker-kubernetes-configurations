@@ -53,6 +53,7 @@ node {
                   configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
                       sh "chmod +x \${DOCKER_IG}"
                       sh "/bin/bash \${DOCKER_IG} \${dockerRegistry} ithappens/\${pom.artifactId} \${pom.version}-${BRANCH}"
+					  sh "/bin/bash \${DOCKER_IG} \${dockerRegistry} ithappens/\${pom.artifactId} \${pom.version}-${BRANCH}"
                   }
               }
           }

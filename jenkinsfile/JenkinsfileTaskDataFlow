@@ -103,6 +103,7 @@ pipeline {
                         configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
                             sh "chmod +x $DOCKER_IG"
                             sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION-$BRANCH_NAME"
+                            sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT latest"
                         }
                     }
                 }
