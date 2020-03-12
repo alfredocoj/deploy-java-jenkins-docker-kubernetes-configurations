@@ -6,7 +6,8 @@ pipeline {
         //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
         ARTIFACT = readMavenPom().getArtifactId()
         VERSION = readMavenPom().getVersion()
-        DOCKER_REPO = '10.121.2.211:5001'
+        //DOCKER_REPO = '10.54.0.214:5001'
+        DOCKER_REPO = 'rdocker.mateus:5001'
         NAME_DEPLOYMENT = "$ARTIFACT-task"
     }
 
@@ -103,7 +104,7 @@ pipeline {
                     configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
                         sh "chmod +x $DOCKER_IG"
                         sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION-$BRANCH_NAME"
-                        sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT latest"
+                        sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION-$BRANCH_NAME"
                     }
                 }
             }
@@ -124,7 +125,7 @@ pipeline {
 
             steps {
 
-                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
 
                     sh 'cp $DIR'
 
@@ -162,7 +163,7 @@ pipeline {
                 NAMESPACE = 'java-hom'
             }
             steps {
-                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
+                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
 
                     sh 'cp $DIR'
 
