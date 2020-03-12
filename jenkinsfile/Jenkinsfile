@@ -6,7 +6,8 @@ pipeline {
         //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
         ARTIFACT = readMavenPom().getArtifactId()
         VERSION = readMavenPom().getVersion()
-        DOCKER_REPO = '10.54.0.214:5001'
+        //DOCKER_REPO = '10.54.0.214:5001'
+        DOCKER_REPO = 'rdocker.mateus:5001'
       	NAME_DEPLOYMENT = "$ARTIFACT-prod"
 		//NAME_DEPLOYMENT = readMavenPom().getArtifactId()
     }
@@ -119,7 +120,9 @@ pipeline {
 
             steps {
 
-                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
+                withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
+				//withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: 'jenkins', serverUrl: 'https://192.168.6.95:6443') {
+                //withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
 
                     sh 'cp $DIR'
 
@@ -134,6 +137,7 @@ pipeline {
                     sh 'cat deployment.yaml'
 
                     sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
+                   //sh 'kubectl --namespace=default apply -f deployment.yaml --record=true'
 
                     sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
 
