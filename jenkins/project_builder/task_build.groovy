@@ -64,7 +64,7 @@ node {
                def dockerTool = tool name: 'docker', type: 'org.jenkinsci.plugins.docker.commons.tools.DockerTool'
                try{
                   withEnv(["DOCKER=\${dockerTool}/bin"]) {
-                      sh "\${DOCKER}/docker run -d --rm \${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH} /deployments/run-java.sh --ittask.app.dockeruri=\${dataflowDockerURI} --ittask.dataflow.server.uri=http://192.168.6.97:30180 --ittask.autoregister=true --thin.root=/deployments/m2"
+                      sh "\${DOCKER}/docker run -d --rm \${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH} /deployments/run-java.sh --ittask.app.dockeruri=\${dataflowDockerURI} --ittask.dataflow.server.uri=http://dataflow.mateus --ittask.autoregister=true --thin.root=/deployments/m2"
                   }
                }catch(Exception ex){
                   slackSend color: '#A64941', message: "Erro ao deployer projeto \${nameDeployment} [\${pom.version}]: \${ex.message}"
