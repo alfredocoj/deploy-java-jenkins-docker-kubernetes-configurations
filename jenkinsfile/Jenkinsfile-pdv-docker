@@ -1,0 +1,166 @@
+pipeline {
+
+   agent any
+
+   environment {
+      //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
+      ARTIFACT = readMavenPom().getArtifactId()
+      VERSION = readMavenPom().getVersion()
+      DOCKER_REPO = '10.54.0.214:5001'
+   }
+
+   stages {
+
+      stage('Build') {
+         agent {
+            docker {
+               image 'maven:3-alpine'
+               args '-v /root/.m2:/root/.m2'
+            }
+         }
+         steps {
+            sh 'mvn -B -DskipTests clean package'
+
+         }
+      }
+
+      stage('Docker Build') {
+
+         agent {
+            docker {
+               image 'maven:3-alpine'
+               args '-v /root/.m2:/root/.m2'
+            }
+         }
+
+         steps {
+            configFileProvider([configFile(fileId: 'DockerImageGenerator', variable: 'DOCKER_IG')]) {
+               configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
+                  sh "chmod +x $DOCKER_IG"
+                  sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION"
+               }
+            }
+         }
+      }
+
+      stage('Deploy kubernetes Master') {
+         when {
+            branch 'master'
+         }
+         environment {
+            IMAGE_DOCKER = "$DOCKER_REPO/ithappens/${ARTIFACT}:${VERSION}"
+            WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
+            deploymentFileName = 'deployment-java-pdv.yaml'
+            GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${ARTIFACT}.groovy"
+            DIR = "$WORKSPACE_DEPLOYMENT/$deploymentFileName $WORKSPACE"
+            NAMESPACE = 'java-pro'
+         }
+
+         steps {
+
+            script {
+               if ("$ARTIFACT" == "pdv-3-banco-cupom" || "$ARTIFACT" == "pdv4-tesouraria" || "$ARTIFACT" == "credito-cliente-pdv" || "$ARTIFACT" == "mateus-app-pdv" ) {
+                  echo "name artefact: $ARTIFACT"
+
+                  def PROFILE_TIPE = input message: 'Escolha sua versão do serviço $ARTIFACT', ok: 'Next',
+                        parameters: [
+                              choice(name: 'PROFILE_TIPE', choices: ['ws','task'].join('\n'), description:  'Por favor, selecione a versão do serviço $ARTIFACT - (1): prod,ws e (2): prod,task')]
+
+                  env.PROFILE_TIPE = PROFILE_TIPE
+                  echo "PROFILE_TIPE: ${env.PROFILE_TIPE}"
+                  GROOVYFILE="$WORKSPACE_DEPLOYMENT/configs/$ARTIFACT-${env.PROFILE_TIPE}.groovy"
+                  env.GROOVYFILE=GROOVYFILE
+                  echo "GROOVYFILE: $GROOVYFILE"
+                  env.NAME_DEPLOYMENT="$ARTIFACT-${env.PROFILE_TIPE}"
+               } else {
+                  env.NAME_DEPLOYMENT="$ARTIFACT"
+               }
+            }
+
+            withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
+
+               sh 'cp $DIR'
+
+               load "${GROOVYFILE}"
+
+               sh 'printenv'
+
+               sh 'rm -rf deployment.yaml'
+
+               sh 'cat $deploymentFileName | envsubst > deployment.yaml'
+
+               sh 'cat deployment.yaml'
+
+               sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
+
+               sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
+
+               sleep 30
+
+               sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
+            }
+         }
+
+      }
+
+      stage('Deploy kubernetes Homologacao') {
+         when {
+            branch 'homologacao'
+         }
+         environment {
+            IMAGE_DOCKER = "$DOCKER_REPO/ithappens/${ARTIFACT}:${VERSION}"
+            WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
+            deploymentFileName = 'deployment-java-pdv.yaml'
+            GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/hom/${ARTIFACT}.groovy"
+            DIR = "$WORKSPACE_DEPLOYMENT/$deploymentFileName $WORKSPACE"
+            NAMESPACE = 'java-hom'
+         }
+
+         steps {
+
+            script {
+               if ("$ARTIFACT" == "pdv-3-banco-cupom" || "$ARTIFACT" == "pdv4-tesouraria") {
+                  echo "name artefact: $ARTIFACT"
+
+                  def PROFILE_TIPE = input message: 'Escolha sua versão do serviço $ARTIFACT', ok: 'Next',
+                        parameters: [
+                              choice(name: 'PROFILE_TIPE', choices: ['ws','task'].join('\n'), description:  'Por favor, selecione a versão do serviço $ARTIFACT - (1): prod,ws e (2): prod,task')]
+
+                  env.PROFILE_TIPE = PROFILE_TIPE
+                  echo "PROFILE_TIPE: ${env.PROFILE_TIPE}"
+                  GROOVYFILE="$WORKSPACE_DEPLOYMENT/configs/$ARTIFACT-${env.PROFILE_TIPE}.groovy"
+                  env.GROOVYFILE=GROOVYFILE
+                  echo "GROOVYFILE: $GROOVYFILE"
+                  env.NAME_DEPLOYMENT="$ARTIFACT-${env.PROFILE_TIPE}"
+               } else {
+                  env.NAME_DEPLOYMENT="$ARTIFACT"
+               }
+            }
+
+            withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
+
+               sh 'cp $DIR'
+
+               load "${GROOVYFILE}"
+
+               sh 'printenv'
+
+               sh 'rm -rf deployment.yaml'
+
+               sh 'cat $deploymentFileName | envsubst > deployment.yaml'
+
+               sh 'cat deployment.yaml'
+
+               sh 'kubectl --namespace=$NAMESPACE apply -f deployment.yaml --record=true'
+
+               sh 'kubectl set image deployment.v1.apps/$NAME_DEPLOYMENT $NAME_DEPLOYMENT-container=$IMAGE_DOCKER --namespace=$NAMESPACE --record=true'
+
+               sleep 30
+
+               sh 'kubectl rollout status deployment.v1.apps/$NAME_DEPLOYMENT --namespace=$NAMESPACE'
+            }
+         }
+
+      }
+   }
+}
