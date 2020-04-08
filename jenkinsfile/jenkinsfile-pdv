@@ -38,7 +38,8 @@ pipeline {
                 configFileProvider([configFile(fileId: 'DockerImageGenerator', variable: 'DOCKER_IG')]) {
                     configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
                         sh "chmod +x $DOCKER_IG"
-                        sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION"
+                        sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION-$GIT_BRANCH"
+                        sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT latest"
                     }
                 }
             }
@@ -49,7 +50,7 @@ pipeline {
                 branch 'master'
             }
             environment {
-                IMAGE_DOCKER = "$DOCKER_REPO/ithappens/${ARTIFACT}:${VERSION}"
+                IMAGE_DOCKER = "$DOCKER_REPO/ithappens/${ARTIFACT}:${VERSION}-${GIT_BRANCH}"
                 WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
                 deploymentFileName = 'deployment-java-pdv.yaml'
                 GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${ARTIFACT}.groovy"
@@ -106,10 +107,10 @@ pipeline {
 
         stage('Deploy kubernetes Homologacao') {
             when {
-                branch 'homologacao'
+                branch 'staging'
             }
             environment {
-                IMAGE_DOCKER = "$DOCKER_REPO/ithappens/${ARTIFACT}:${VERSION}"
+                IMAGE_DOCKER = "$DOCKER_REPO/ithappens/${ARTIFACT}:${VERSION}-${GIT_BRANCH}"
                 WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
                 deploymentFileName = 'deployment-java-pdv.yaml'
                 GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/hom/${ARTIFACT}.groovy"
@@ -138,7 +139,8 @@ pipeline {
                     }
                 }
 
-                withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
+                //withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
+                withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '451d592d-ce0d-476b-bc29-cc437e29c18a', namespace: '', serverUrl: 'https://10.0.1.31:6443') {
 
                     sh 'cp $DIR'
 
