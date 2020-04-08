@@ -1,0 +1,39 @@
+pipeline {
+
+   agent {
+      docker {
+         image 'maven:3-alpine'
+         args '-v /root/.m2:/root/.m2'
+      }
+   }
+
+   environment {
+      //Use Pipeline Utility Steps plugin to read information from pom.xml into env variables
+      ARTIFACT = readMavenPom().getArtifactId()
+      VERSION = readMavenPom().getVersion()
+   }
+
+   stages {
+      stage('Build') {
+         steps {
+            configFileProvider([configFile(fileId: '07710e30-2822-4669-9f45-30349edeb108', variable: 'SETTINGS_XML')]) {
+               sh 'mvn -B -DskipTests clean package'
+            }
+         }
+      }
+
+      stage('Docker Build') {
+         environment {
+            DOCKER_REPO='10.54.0.214:5001'
+         }
+         steps {
+            configFileProvider([configFile(fileId: 'DockerImageGenerator', variable: 'DOCKER_IG')]) {
+               configFileProvider([configFile(fileId: 'DockerFile', variable: 'DOCKERFILE')]) {
+                  sh "chmod +x $DOCKER_IG"
+                  sh "/bin/bash $DOCKER_IG $DOCKER_REPO ithappens/$ARTIFACT $VERSION"
+               }
+            }
+         }
+      }
+   }
+}
