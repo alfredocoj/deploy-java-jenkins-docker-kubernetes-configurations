@@ -84,7 +84,7 @@ node {
   
                       withEnv(["NAME_DEPLOYMENT=\${nameDeployment}",
                                   "IMAGE_DOCKER=\${imageDocker}"]) {
-                          withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://192.168.6.95:6443') {
+                          withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
                               sh "cp \${directory}"
                               load "\${groovyFile}"
                               sh 'printenv'
