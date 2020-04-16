@@ -56,7 +56,7 @@ node {
                   }
               }
           }
-          stage('Deploy Kubernetes') {
+          stage('Deploy Kubernetes to site 1') {
               def pom = readMavenPom file: ''
               def dockerRegistry = '10.54.0.214:5001'
               def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
@@ -100,6 +100,54 @@ node {
                   }
               } catch (Exception ex) {
                   slackSend color: '#A64941', message: "Erro ao deployer projeto \${nameDeployment} [\${pom.version}]: \${ex.message}"
+                  error(ex.message)
+              }
+          }
+          
+          stage('Deploy Kubernetes to site 2') {
+              def pom = readMavenPom file: ''
+              def dockerRegistry = '10.54.0.214:5001'
+              def imageDocker = "\\${dockerRegistry}/ithappens/\\${pom.artifactId}:\\${pom.version}-${BRANCH}"
+              def deploymentFileName = 'deployment-java-default.yaml'
+              def groovyFile = "conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/\\${pom.artifactId}.groovy"
+              def directory = "\\${deploymentFileName} \\${WORKSPACE}"
+              def namespace = 'java-pro'
+              def nameDeployment = "\\${pom.artifactId}-prod"
+              if("${BRANCH}" == "staging") {
+                  groovyFile = "conf/java/${TIPO_DO_PROJETO}/homologacao/${MODULO}/\\${pom.artifactId}.groovy"
+                  namespace = 'java-hom'
+                  nameDeployment = "\\${pom.artifactId}-hom"
+              }
+  
+              try {
+                  sh 'mkdir -p kubkonfig'
+                  dir('kubkonfig') {
+                      checkout changelog: true, poll: true, scm: [
+                              \\$class: 'GitSCM',
+                              branches: [[name: "origin/master"]],
+                              doGenerateSubmoduleConfigurations: false,
+                              submoduleCfg: [],
+                              userRemoteConfigs: [[credentialsId: 'JenkinsUserInGitLab', url: "git@gitlab.mateus:infra/configs-templates-deployment.git"]]
+                      ]
+  
+                      withEnv(["NAME_DEPLOYMENT=\\${nameDeployment}",
+                                  "IMAGE_DOCKER=\\${imageDocker}"]) {
+                          withKubeConfig(caCertificate: '', clusterName: 'KubernetesSite2', contextName: 'kubernetes-admin@kubernetes', credentialsId: 'token_k8s_site2', namespace: '', serverUrl: 'https://k8s-lb-s2.mateus:6443') {
+                              sh "cp \\${directory}"
+                              load "\\${groovyFile}"
+                              sh 'printenv'
+                              sh 'rm -rf deployment.yaml'
+                              sh "cat \\${deploymentFileName} | envsubst > deployment.yaml"
+                              sh 'cat deployment.yaml'
+                              sh "kubectl --namespace=\\${namespace} apply -f deployment.yaml --record=true"
+                              sh "kubectl set image deployment.v1.apps/\\${nameDeployment} \\${nameDeployment}-container=\\${imageDocker} --namespace=\\${namespace} --record=true"
+                              sleep 30
+                              sh "kubectl rollout status deployment.v1.apps/\\${nameDeployment} --namespace=\\${namespace}"
+                          }
+                      }
+                  }
+              } catch (Exception ex) {
+                  slackSend color: '#A64941', message: "Erro ao deployer projeto \\${nameDeployment} [\\${pom.version}]: \\${ex.message}"
                   error(ex.message)
               }
           } 
