@@ -1,0 +1,71 @@
+pipeline{
+   agent any
+
+   environment {
+      ARTIFACT = "estoque-front-fornecedor-produtos"
+      VERSION = sh(script: 'echo "v"$((${BUILD_NUMBER}%5))', returnStdout: true)
+      WORKSPACE_DEPLOYMENT = "${JENKINS_HOME}/workspace/templates-deployment"
+      TEMPLATES_DIR_NODE = "${WORKSPACE_DEPLOYMENT}/node"
+      TEMPLATES_DIR_ANSIBLE = "${WORKSPACE_DEPLOYMENT}/ansible"
+      DOCKER_REPO = '10.54.0.214:5001/ithappens'
+      BRANCH_NAME = 'master-estoque'
+   }
+   stages {
+      stage('Clone repository') {
+         /* Let's make sure we have the repository cloned to our workspace */
+
+         //checkout scm
+         steps {
+            git branch: 'master',
+                  //credentialsId: 'my_cred_id',
+                  url: 'git@gitlab.mateus:estoque/estoque-front-fornecedor-produtos.git'
+
+            sh "ls -lat"
+         }
+      }
+
+      stage('Build') {
+         /* This builds the actual image; synonymous to
+          * docker build on the command line */
+         steps {
+
+            sh 'cp ${TEMPLATES_DIR_NODE}/Dockerfile Dockerfile'
+
+            sh 'cp ${TEMPLATES_DIR_NODE}/nginx.conf nginx.conf'
+
+            sh 'docker image build -t ${ARTIFACT} --force-rm . '
+
+            sh 'docker tag $(docker images -q ${ARTIFACT}:latest) $DOCKER_REPO/$ARTIFACT-$BRANCH_NAME:${VERSION}'
+
+            sh 'docker tag $(docker images -q ${ARTIFACT}:latest) $DOCKER_REPO/$ARTIFACT-$BRANCH_NAME:latest'
+
+
+         }
+      }
+
+      stage('Push image') {
+         steps {
+            /* Finally, we'll push the image with two tags:
+         * First, the incremental build number from Jenkins
+         * Second, the 'latest' tag.
+         * Pushing multiple tags is cheap, as all the layers are reused. */
+            sh 'docker push $DOCKER_REPO/$ARTIFACT-$BRANCH_NAME:${VERSION}'
+            sh 'docker push $DOCKER_REPO/$ARTIFACT-$BRANCH_NAME:latest'
+            //sh 'docker push $DOCKER_REPO/$ARTIFACT-$BRANCH_NAME:latest'
+         }
+      }
+
+      stage('Deploy production') {
+         environment {
+            ANSIBLE_PLAYBOOK="${TEMPLATES_DIR_ANSIBLE}/${ARTIFACT}.yaml"
+            GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/node/${ARTIFACT}.groovy"
+         }
+         steps {
+            load "${GROOVYFILE}"
+            //sh 'printenv'
+            sh 'cat $ANSIBLE_PLAYBOOK | envsubst > ansible.yml'
+            sh 'ansible-playbook -i $TEMPLATES_DIR_ANSIBLE/hosts ansible.yml'
+         }
+      }
+   }
+}
