@@ -56,7 +56,7 @@ node {
                   }
               }
           }
-          stage('Deploy Kubernetes to site 1') {
+          stage('Deploy Kubernetes to Site 1') {
               def pom = readMavenPom file: ''
               def dockerRegistry = '10.54.0.214:5001'
               def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
@@ -104,7 +104,7 @@ node {
               }
           }
           
-          stage('Deploy Kubernetes to site 2') {
+          stage('Deploy Kubernetes to Site 2') {
               def pom = readMavenPom file: ''
               def dockerRegistry = '10.54.0.214:5001'
               def imageDocker = "\\${dockerRegistry}/ithappens/\\${pom.artifactId}:\\${pom.version}-${BRANCH}"
