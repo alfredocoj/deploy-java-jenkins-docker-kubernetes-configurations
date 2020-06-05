@@ -2,13 +2,13 @@ pipeline {
    agent any
 
    environment {
-      REGISTRY = '10.54.0.214:5001'
+      REGISTRY = '192.168.6.144:5001'
       IMAGE_ON_REGISTRY = '$REGISTRY/ithappens/tomcat-homolog-ithappens'
       URL_BASE = "http://167.99.126.144:8080/mateus/release"
       FILE_LAST_VERSION = 'lastversion.txt'
       NAME_IMAGE_DOCKER = 'tomcat-service-homolog'
       LAST_VERSION = sh(script: 'echo $((${BUILD_NUMBER}%5))', returnStdout: true)
-      FILE_NAME_LASTVERSION=sh(script: 'wget http://167.99.126.144:8080/mateus/release/maxipos_homol_lastupdate.txt -O  maxipos_homol_lastupdate >/dev/null  && cat  maxipos_homol_lastupdate  ', returnStdout: true)
+      FILE_NAME_LASTVERSION=sh(script: 'wget http://167.99.126.144:8080/mateus/release/maxipos_homol_lastupdate.txt -O  maxipos_homol_lastupdate.txt >/dev/null  && cat  maxipos_homol_lastupdate.txt  ', returnStdout: true)
       TEMPLATES_DIR_ANSIBLE = "ansible"
    }
 
@@ -24,14 +24,12 @@ pipeline {
 
             sh "ls -lat"
          }
-
-      }
+      } 
 
       stage('Download .wars') {
 
          steps {
 
-         
             sh "rm -rf *.war && \
             rm -rf *.zip && \
             rm -rf *.jar && \
@@ -45,13 +43,25 @@ pipeline {
 
       }
 
+      stage ('Docker pull tomcat base'){
+          steps {
+              sh "docker pull 192.168.6.144:5001/ithappens/tomcat-ithappens-base:latest"
+          }
+      }
+
       stage('Build and Push tomcat-service') {
-      
+               /* This builds the actual image; synonymous to
+          * docker build on the command line */
+         when {
+            // Only say hello if a "greeting" is requested
+            expression { params.tomcat_service_3_sobe_venda || tomcat_service_2_grava_nfce || tomcat_service_1_autoriza_nfce || tomcat_pdv_status }
+         }
+
          steps {
 
-            sh "docker pull 10.54.0.214:5001/ithappens/tomcat-ithappens-base:latest"
+            sh 'printenv' 
 
-            sh "docker build . -f DockerfileProd-service -t tomcat-service-homolog"
+            sh "docker build . -f DockerfileProd-service -t tomcat-service-homolog --no-cache"
 
             sh "docker tag `docker images -q tomcat-service-homolog` $REGISTRY/ithappens/tomcat-service-homolog-ithappens:1.2.4.$LAST_VERSION"
 
@@ -67,10 +77,15 @@ pipeline {
       }
 
       stage('Build and Push tomcat-share') {
-          
+                /* This builds the actual image; synonymous to
+          * docker build on the command line */
+         when {
+            // Only say hello if a "greeting" is requested
+            expression { params.tomcat_share }
+         } 
          steps {
 
-            sh "docker build . -f DockerfileProd-share -t tomcat-share-homolog"
+            sh "docker build . -f DockerfileProd-share -t tomcat-share-homolog --no-cache"
 
             sh "docker tag `docker images -q tomcat-share-homolog` $REGISTRY/ithappens/tomcat-share-homolog-ithappens:1.2.4.$LAST_VERSION"
 
@@ -86,10 +101,16 @@ pipeline {
       }
 
       stage('Build and Push tomcat-task') {
+                   /* This builds the actual image; synonymous to
+          * docker build on the command line */
+         when {
+            // Only say hello if a "greeting" is requested
+            expression { params.tomcat_task }
+         }
      
          steps {
 
-            sh "docker build . -f DockerfileProd-task -t tomcat-task-homolog"
+            sh "docker build . -f DockerfileProd-task -t tomcat-task-homolog --no-cache"
 
             sh "docker tag `docker images -q tomcat-task-homolog` $REGISTRY/ithappens/tomcat-task-homolog-ithappens:1.2.4.$LAST_VERSION"
 
@@ -117,3 +138,5 @@ pipeline {
          }
       }
    }
+
+}
