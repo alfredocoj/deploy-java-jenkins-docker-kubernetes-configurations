@@ -58,7 +58,7 @@ node {
           }
           stage('Deploy Kubernetes to Site 1') {
               def pom = readMavenPom file: ''
-              def dockerRegistry = '10.54.0.214:5001'
+              def dockerRegistry = 'rdocker.mateus:5001'
               def imageDocker = "\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
               def deploymentFileName = 'deployment-java-default.yaml'
               def groovyFile = "conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/\${pom.artifactId}.groovy"
@@ -106,7 +106,7 @@ node {
           
           stage('Deploy Kubernetes to Site 2') {
               def pom = readMavenPom file: ''
-              def dockerRegistry = '10.54.0.214:5001'
+              def dockerRegistry = 'rdocker.mateus:5001'
               def imageDocker = "\\${dockerRegistry}/ithappens/\\${pom.artifactId}:\\${pom.version}-${BRANCH}"
               def deploymentFileName = 'deployment-java-default.yaml'
               def groovyFile = "conf/java/${TIPO_DO_PROJETO}/master/${MODULO}/\\${pom.artifactId}.groovy"
