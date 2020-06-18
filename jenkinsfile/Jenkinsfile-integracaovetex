@@ -5,9 +5,9 @@ pipeline {
       DOCKER_REPO = '192.168.6.144:5001/ithappens'
       IMAGE_NAME = 'ecommerce-integracaovetex'
       APP_NAME = 'integracaovetex'
-      VERSION = 'latest'
-      WORKSPACE_DEPLOYMENT = "${JENKINS_HOME}/workspace/templates-deployment"
-      TEMPLATES_DIR_ANSIBLE = "${WORKSPACE_DEPLOYMENT}/ansible"
+      VERSION = sh(script: 'echo $((${BUILD_NUMBER}%3))', returnStdout: true).trim()
+      WORKSPACE_DEPLOYMENT = "configs"
+      TEMPLATES_DIR_ANSIBLE = "${WORKSPACE_DEPLOYMENT}/ansible/ecommerce"
    }
    stages {
       stage('Clone repository') {
@@ -21,6 +21,22 @@ pipeline {
 
             sh "ls -lat"
          }
+      }
+
+      stage('Clone repository configs') {
+         /* Let's make sure we have the repository cloned to our workspace */
+         //checkout scm
+         steps {
+            sh "mkdir -p $DIR_CONFIGS_BASE"
+            dir("$DIR_CONFIGS_BASE") {
+               git branch: 'master',
+                     //credentialsId: '105d78b2-3f22-467e-82ac-e52151f8a48f',
+                     url: 'git@gitlab.mateus:infra/configs-templates-deployment.git'
+
+               sh "ls -lat"
+            }
+         }
+
       }
 
       stage('Build manven') {
@@ -37,6 +53,8 @@ pipeline {
 
             sh 'docker tag $(docker images -q ${IMAGE_NAME}:latest) $DOCKER_REPO/$IMAGE_NAME:${VERSION}'
 
+            sh 'docker tag $(docker images -q ${IMAGE_NAME}:latest) $DOCKER_REPO/$IMAGE_NAME:latest'
+
          }
       }
 
@@ -47,19 +65,22 @@ pipeline {
          * Second, the 'latest' tag.
          * Pushing multiple tags is cheap, as all the layers are reused. */
             sh 'docker push ${DOCKER_REPO}/${IMAGE_NAME}:${VERSION}'
+            sh 'docker push ${DOCKER_REPO}/${IMAGE_NAME}:latest'
          }
       }
 
       stage('Deploy production') {
          environment {
-            ANSIBLE_PLAYBOOK="${TEMPLATES_DIR_ANSIBLE}/${APP_NAME}.yml"
-            GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${APP_NAME}.groovy"
+            ANSIBLE_PLAYBOOK="ansible/ecommerce/${APP_NAME}.yml"
+            GROOVYFILE = "configs/configs/${APP_NAME}.groovy"
          }
          steps {
-            load "${GROOVYFILE}"
-            //sh 'printenv'
-            sh 'cat $ANSIBLE_PLAYBOOK | envsubst > ansible.yml'
-            sh 'ansible-playbook -i $TEMPLATES_DIR_ANSIBLE/hosts ansible.yml'
+            dir("configs") {
+               load "${GROOVYFILE}"
+               //sh 'printenv'
+               sh 'cat $ANSIBLE_PLAYBOOK | envsubst > ansible.yml'
+               sh 'ansible-playbook -i ansible/hosts ansible.yml'
+            }
          }
       }
 
