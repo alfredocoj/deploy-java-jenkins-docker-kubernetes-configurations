@@ -27,8 +27,8 @@ pipeline {
          /* Let's make sure we have the repository cloned to our workspace */
          //checkout scm
          steps {
-            sh "mkdir -p $DIR_CONFIGS_BASE"
-            dir("$DIR_CONFIGS_BASE") {
+            sh "mkdir -p $WORKSPACE_DEPLOYMENT"
+            dir("$WORKSPACE_DEPLOYMENT") {
                git branch: 'master',
                      //credentialsId: '105d78b2-3f22-467e-82ac-e52151f8a48f',
                      url: 'git@gitlab.mateus:infra/configs-templates-deployment.git'
@@ -72,7 +72,7 @@ pipeline {
       stage('Deploy production') {
          environment {
             ANSIBLE_PLAYBOOK="ansible/ecommerce/${APP_NAME}.yml"
-            GROOVYFILE = "configs/configs/${APP_NAME}.groovy"
+            GROOVYFILE = "configs/configs/java/ecommerce/${APP_NAME}.groovy"
          }
          steps {
             dir("configs") {
