@@ -2,7 +2,7 @@ pipeline {
    agent any
 
    environment {
-      DOCKER_REPO = '10.54.0.214:5001/ithappens'
+      DOCKER_REPO = '192.168.6.144:5001/ithappens'
       IMAGE_NAME = 'ecommerce-integracaovetex'
       APP_NAME = 'integracaovetex'
       VERSION = 'latest'
@@ -52,7 +52,7 @@ pipeline {
 
       stage('Deploy production') {
          environment {
-            ANSIBLE_PLAYBOOK = "${TEMPLATES_DIR_ANSIBLE}/${APP_NAME}.yml"
+            ANSIBLE_PLAYBOOK="${TEMPLATES_DIR_ANSIBLE}/${APP_NAME}.yml"
             GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/${APP_NAME}.groovy"
          }
          steps {
