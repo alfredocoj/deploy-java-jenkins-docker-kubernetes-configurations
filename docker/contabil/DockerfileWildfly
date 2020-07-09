@@ -1,0 +1,3 @@
+FROM rdocker.mateus:5001/ithappens/wildfly-contabil:latest
+
+COPY target/$WAR_NAME.war /opt/jboss/wildfly/standalone/deployments/$ARTIFACT.war
