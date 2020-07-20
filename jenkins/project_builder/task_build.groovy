@@ -70,6 +70,22 @@ node {
                   slackSend color: '#A64941', message: "Erro ao deployer projeto \${nameDeployment} [\${pom.version}]: \${ex.message}"
                   error(ex.message)
                }
+               
+               withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
+               //withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '451d592d-ce0d-476b-bc29-cc437e29c18a', namespace: '', serverUrl: 'https://10.0.1.11:6443') {
+                    script {
+                        def url_api = "http://wsdevops.hom.mateus/devops/api/devops-rest-ittask-server/integration/tasks/\${pom.artifactId}?filter=schedules"
+                        def response = httpRequest contentType: 'APPLICATION_JSON', httpMode: 'GET', url: "\${url_api}"
+                        def task_names = response.content.trim().split(",")
+                        for (name in task_names) {
+                            if (name?.trim()) {
+                                 echo "apply in cronjob: \${name}"
+                                 echo "kubectl patch cronjob \${MODULO}-\${TIPO_DO_PROJETO}-\${name} -p '{\"spec\":{\"concurrencyPolicy\":Forbid}}'  -n engenharia-tasks"
+                                 sh "kubectl patch cronjob s-\${MODULO}-\${TIPO_DO_PROJETO}-\${name} -p '{\"spec\": {\"concurrencyPolicy\": \"Forbid\"}}' -n engenharia-tasks"
+                            }
+                       }
+                   }
+                }
           }
       }
 	}
