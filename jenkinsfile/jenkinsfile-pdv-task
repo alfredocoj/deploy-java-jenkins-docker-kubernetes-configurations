@@ -11,6 +11,30 @@ pipeline {
 
     stages {
 
+        stage('Initialization') {
+            steps {
+
+                script {
+                    if ("$ARTIFACT" == "pdv-3-banco-cupom" || "$ARTIFACT" == "pdv4-tesouraria" || "$ARTIFACT" == "credito-cliente-pdv" || "$ARTIFACT" == "mateus-app-pdv") {
+                        echo "name artefact: $ARTIFACT"
+
+                        def PROFILE_TIPE = input message: 'Escolha sua versão do serviço $ARTIFACT', ok: 'Next',
+                              parameters: [
+                                    choice(name: 'PROFILE_TIPE', choices: ['ws', 'task'].join('\n'), description: 'Por favor, selecione a versão do serviço $ARTIFACT - (1): dev,ws e (2): dev,task')]
+
+                        env.PROFILE_TIPE = PROFILE_TIPE
+                        echo "PROFILE_TIPE: ${env.PROFILE_TIPE}"
+                        GROOVYFILE = "$WORKSPACE_DEPLOYMENT/configs/hom/$ARTIFACT-${env.PROFILE_TIPE}.groovy"
+                        env.GROOVYFILE = GROOVYFILE
+                        echo "GROOVYFILE: $GROOVYFILE"
+                        env.NAME_DEPLOYMENT = "$ARTIFACT-${env.PROFILE_TIPE}"
+                    } else {
+                        env.NAME_DEPLOYMENT = "$ARTIFACT"
+                    }
+                }
+            }
+        }
+
         stage('Build') {
             agent {
                 docker {
@@ -60,13 +84,13 @@ pipeline {
 
             steps {
 
-                script {
+                /*script {
                     if ("$ARTIFACT" == "pdv-3-banco-cupom" || "$ARTIFACT" == "pdv4-tesouraria" || "$ARTIFACT" == "credito-cliente-pdv" || "$ARTIFACT" == "mateus-app-pdv" ) {
                         echo "name artefact: $ARTIFACT"
 
                         def PROFILE_TIPE = input message: 'Escolha sua versão do serviço $ARTIFACT', ok: 'Next',
-                              parameters: [
-                                    choice(name: 'PROFILE_TIPE', choices: ['ws','task'].join('\n'), description:  'Por favor, selecione a versão do serviço $ARTIFACT - (1): prod,ws e (2): prod,task')]
+                                parameters: [
+                                        choice(name: 'PROFILE_TIPE', choices: ['ws','task'].join('\n'), description:  'Por favor, selecione a versão do serviço $ARTIFACT - (1): prod,ws e (2): prod,task')]
 
                         env.PROFILE_TIPE = PROFILE_TIPE
                         echo "PROFILE_TIPE: ${env.PROFILE_TIPE}"
@@ -77,7 +101,7 @@ pipeline {
                     } else {
                         env.NAME_DEPLOYMENT="$ARTIFACT"
                     }
-                }
+                }*/
 
                 //withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
                 withKubeConfig(caCertificate: '', clusterName: 'KubernetesSite2', contextName: 'kubernetes-admin@kubernetes', credentialsId: 'token_k8s_site2', namespace: '', serverUrl: 'https://k8s-lb-s2.mateus:6443') {
@@ -122,13 +146,13 @@ pipeline {
 
             steps {
 
-                script {
+                /*script {
                     if ("$ARTIFACT" == "pdv-3-banco-cupom" || "$ARTIFACT" == "pdv4-tesouraria" || "$ARTIFACT" == "credito-cliente-pdv" || "$ARTIFACT" == "mateus-app-pdv") {
                         echo "name artefact: $ARTIFACT"
 
                         def PROFILE_TIPE = input message: 'Escolha sua versão do serviço $ARTIFACT', ok: 'Next',
-                              parameters: [
-                                    choice(name: 'PROFILE_TIPE', choices: ['ws','task'].join('\n'), description:  'Por favor, selecione a versão do serviço $ARTIFACT - (1): dev,ws e (2): dev,task')]
+                                parameters: [
+                                        choice(name: 'PROFILE_TIPE', choices: ['ws','task'].join('\n'), description:  'Por favor, selecione a versão do serviço $ARTIFACT - (1): dev,ws e (2): dev,task')]
 
                         env.PROFILE_TIPE = PROFILE_TIPE
                         echo "PROFILE_TIPE: ${env.PROFILE_TIPE}"
@@ -139,7 +163,7 @@ pipeline {
                     } else {
                         env.NAME_DEPLOYMENT="$ARTIFACT"
                     }
-                }
+                }*/
 
                 //withKubeConfig(caCertificate: '', clusterName: 'kubernetes', contextName: 'kubernetes-admin@kubernetes', credentialsId: '0084561c-977f-4dc0-ae41-48075a2507ca', namespace: '', serverUrl: 'https://k8s-lb.mateus:6443') {
                 withKubeConfig(caCertificate: '', clusterName: 'ClusterItHappens', contextName: 'kubernetes-admin@kubernetes', credentialsId: '451d592d-ce0d-476b-bc29-cc437e29c18a', namespace: '', serverUrl: 'https://10.0.1.11:6443') {
