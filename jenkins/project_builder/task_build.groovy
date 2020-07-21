@@ -58,7 +58,7 @@ node {
               }
           }
           stage('Deploy Kubernetes'){
-			   def pom = readMavenPom file: ''
+			      def pom = readMavenPom file: ''
                def dockerRegistry = 'rdocker.mateus:5001'
                def dataflowDockerURI = "docker:\${dockerRegistry}/ithappens/\${pom.artifactId}:\${pom.version}-${BRANCH}"
                def dockerTool = tool name: 'docker', type: 'org.jenkinsci.plugins.docker.commons.tools.DockerTool'
@@ -85,7 +85,7 @@ node {
                             }
                        }
                    }
-                }
+               }
           }
       }
 	}
