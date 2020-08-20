@@ -17,12 +17,28 @@ pipeline {
             }
         }
 
+        stage('Docker build and push') {
+            /* This builds the actual image; synonymous to
+             * docker build on the command line */
+            steps {
+                sh 'cp /var/jenkins_home/workspace/templates-deployment/docker/contabil/DockerfileWildfly Dockerfile'
+                sh 'cp /var/jenkins_home/workspace/templates-deployment/docker/contabil/standalone.xml standalone.xml'
+                sh 'mv target/$WAR_NAME.war target/$ARTIFACT.war'
+                sh 'docker build -t wildfly-contabil-task . --no-cache'
+                sh 'docker tag wildfly-contabil-task:latest rdocker.mateus:5001/ithappens/wildfly-contabil-task:latest'
+                sh 'docker tag wildfly-contabil-task:latest rdocker.mateus:5001/ithappens/wildfly-contabil-task:$VERSION'
+                sh 'docker push rdocker.mateus:5001/ithappens/wildfly-contabil-task:latest'
+                sh 'docker push rdocker.mateus:5001/ithappens/wildfly-contabil-task:$VERSION'
+
+            }
+        }
+
         stage('Deploy Kubernetes Producao') {
             when {
                 branch 'master'
             }
             environment {
-                IMAGE_DOCKER = "rdocker.mateus:5001/ithappens/wildfly-nfe:latest"
+                IMAGE_DOCKER = "rdocker.mateus:5001/ithappens/wildfly-contabil-task:$VERSION"
                 WORKSPACE_DEPLOYMENT = '/var/jenkins_home/workspace/templates-deployment'
                 deploymentFileName = 'deployment-wildfly-contabil-task.yaml'
                 GROOVYFILE = "${WORKSPACE_DEPLOYMENT}/configs/contabilidade-wildfly-${ARTIFACT}-task.groovy"
@@ -38,23 +54,17 @@ pipeline {
 
                     load "${GROOVYFILE}"
 
-                    sh 'printenv'
-
                     sh 'rm -rf deployment.yaml'
 
-                    sh 'POD=$(kubectl -n java-pro get pod -l app=$NAME_DEPLOYMENT -o jsonpath="{.items[0].metadata.name}")'
+                    //sh 'mv target/$WAR_NAME.war target/$ARTIFACT.war'
 
-                    sh 'mv target/$WAR_NAME.war target/$ARTIFACT.war'
+                    //sh 'kubectl cp target/$ARTIFACT.war java-pro/$(kubectl -n java-pro get pod -l app=$NAME_DEPLOYMENT -o jsonpath="{.items[0].metadata.name}"):/opt/jboss/wildfly/standalone/deployments/$ARTIFACT.war'
 
-                    sh 'kubectl cp target/$ARTIFACT.war java-pro/$(kubectl -n java-pro get pod -l app=$NAME_DEPLOYMENT -o jsonpath="{.items[0].metadata.name}"):/opt/jboss/wildfly/standalone/deployments/$ARTIFACT.war'
+                    //sleep 10
 
-                    sleep 10
+                    //sh 'kubectl -n java-pro delete pods $(kubectl -n java-pro get pod -l app=$NAME_DEPLOYMENT -o jsonpath="{.items[0].metadata.name}")'
 
-                    sh 'kubectl -n java-pro delete pods $(kubectl -n java-pro get pod -l app=$NAME_DEPLOYMENT -o jsonpath="{.items[0].metadata.name}")'
-
-                    sleep 20
-
-                    sh 'echo "POD_NAME: "$POD'
+                    //sleep 20
 
                     sh 'cat $deploymentFileName | envsubst > deployment.yaml'
 
