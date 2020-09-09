@@ -41,11 +41,14 @@ pipeline {
                 }
             }
             steps {
-              	configFileProvider([configFile(fileId: 'ItHappensTaskDeployFileId', variable: 'DEPLOY_ID')]) {
+                configFileProvider([configFile(fileId: '07710e30-2822-4669-9f45-30349edeb108', variable: 'SETTINGS_XML')]) {
+              	  configFileProvider([configFile(fileId: 'ItHappensTaskDeployFileId', variable: 'DEPLOY_ID')]) {
+
                     sh 'chmod +x $DEPLOY_ID'
                     sh "/bin/bash $DEPLOY_ID"
+                  }
+                sh 'mvn -B -DskipTests clean package -s ${SETTINGS_XML}'
                 }
-                sh 'mvn -B -DskipTests clean package'
             }
         }
 
